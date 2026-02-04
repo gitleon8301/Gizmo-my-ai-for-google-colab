@@ -1,1 +1,1 @@
---cpu --api --public-api --share
+--cpu --ctx-size 2048 --threads 4 --api --public-api --share
