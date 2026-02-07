@@ -317,7 +317,7 @@ def gather_interface_values(*args):
         shared.persistent_interface_state = output
 
         # Remove the chat input, as it gets cleared after this function call
-        shared.persistent_interface_state.pop('textbox')
+        shared.persistent_interface_state.pop('textbox', None)
 
     # Prevent history loss if backend is restarted but UI is not refreshed
     if (output['history'] is None or (len(output['history'].get('visible', [])) == 0 and len(output['history'].get('internal', [])) == 0)) and output['unique_id'] is not None:
@@ -573,12 +573,11 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args, ele
     def refresh():
         refresh_method()
         args = refreshed_args() if callable(refreshed_args) else refreshed_args
-
         return gr.update(**(args or {}))
 
     refresh_button = gr.Button(refresh_symbol, elem_classes=elem_class, interactive=interactive)
     refresh_button.click(
-        fn=lambda: {k: tuple(v) if type(k) is list else v for k, v in refresh().items()},
+        fn=lambda: {k: tuple(v) if isinstance(v, list) else v for k, v in refresh().items()},
         inputs=[],
         outputs=[refresh_component]
     )
