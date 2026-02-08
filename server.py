@@ -4,29 +4,8 @@ import warnings
 from pathlib import Path
 
 from modules import shared
-
-# --- Lazy import helpers (avoid circular import / startup import-time errors) ---
-_OpenMonkeyPatch = None
-_RequestBlocker = None
-_load_image_model = None
-
-def _ensure_block_requests():
-    """Return (OpenMonkeyPatch, RequestBlocker) classes, importing them lazily."""
-    global _OpenMonkeyPatch, _RequestBlocker
-    if _OpenMonkeyPatch is None or _RequestBlocker is None:
-        from modules.block_requests import OpenMonkeyPatch, RequestBlocker
-        _OpenMonkeyPatch, _RequestBlocker = OpenMonkeyPatch, RequestBlocker
-    return _OpenMonkeyPatch, _RequestBlocker
-
-def _ensure_image_models():
-    """Return load_image_model function, importing it lazily."""
-    global _load_image_model
-    if _load_image_model is None:
-        from modules.image_models import load_image_model
-        _load_image_model = load_image_model
-    return _load_image_model
-# --- end lazy helpers ---
-
+from modules.block_requests import OpenMonkeyPatch, RequestBlocker
+from modules.image_models import load_image_model
 from modules.logging_colors import logger
 from modules.prompts import load_prompt
 
