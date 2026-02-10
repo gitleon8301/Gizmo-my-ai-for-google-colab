@@ -183,38 +183,93 @@ def create_event_handlers():
     shared.gradio['get_file_list'].click(partial(download_model_wrapper, return_links=True), gradio('custom_model_menu', 'download_specific_file'), gradio('model_status'), show_progress=True)
     shared.gradio['customized_template_submit'].click(save_instruction_template, gradio('model_menu', 'customized_template'), gradio('model_status'), show_progress=True)
 
-
 def load_model_wrapper(selected_model, loader, autoload=False):
+    """
+    Load model with file validation.
+    Checks file exists and has valid size before attempting to load.
+    """
+    from pathlib import Path
+    
+    # Check if model is selected
+    if not selected_model or selected_model == 'None':
+        yield "No model selected"
+        return
+    
+    # CRITICAL: Validate model file BEFORE attempting to load metadata
+    model_path = utils.resolve_model_path(selected_model)
+    
+    # Check if path exists
+    if not model_path.exists():
+        yield f"Error: Model not found: {selected_model}\n\nPath checked: {model_path}"
+        return
+    
+    # For GGUF files, validate file size
+    if selected_model.lower().endswith('.gguf'):
+        if model_path.is_file():
+            model_file = model_path
+        else:
+            # It's a directory, find GGUF file
+            gguf_files = list(model_path.glob('*.gguf'))
+            if not gguf_files:
+                yield f"Error: No GGUF files found in: {model_path}"
+                return
+            model_file = gguf_files[0]
+        
+        # Validate file size
+        try:
+            file_size = model_file.stat().st_size
+            MIN_VALID_SIZE = 1024 * 1024  # 1MB minimum
+            
+            if file_size < MIN_VALID_SIZE:
+                yield f"Error: Model file too small ({file_size:,} bytes)\n\n"
+                yield f"File: {model_file.name}\n"
+                yield f"Expected: At least {MIN_VALID_SIZE:,} bytes (1MB)\n\n"
+                yield "This file appears to be corrupt or incomplete.\n"
+                yield "Please re-download the model."
+                return
+        
+        except Exception as e:
+            yield f"Error: Cannot read file: {e}"
+            return
+    
+    # Now safe to load metadata
     try:
         settings = get_model_metadata(selected_model)
     except FileNotFoundError:
         exc = traceback.format_exc()
         yield exc.replace('\n', '\n\n')
         return
-
-    if not autoload:
-        yield "### {}\n\n- Settings updated: Click \"Load\" to load the model\n- Max sequence length: {}".format(selected_model, settings['truncation_length_info'])
+    except Exception as e:
+        yield f"Error loading model metadata: {e}\n\n"
+        yield "The model file may be corrupt. Please re-download it."
+        return
+    
+    # Check if settings were successfully loaded
+    if not settings:
+        yield f"Error: Could not load metadata for {selected_model}\n\n"
+        yield "The model file may be corrupt or in an unsupported format."
         return
 
-    if selected_model == 'None':
-        yield "No model selected"
-    else:
-        try:
-            yield f"Loading `{selected_model}`..."
-            unload_model()
-            if selected_model != '':
-                shared.model, shared.tokenizer = load_model(selected_model, loader)
+    if not autoload:
+        yield "### {}\n\n- Settings updated: Click \"Load\" to load the model\n- Max sequence length: {}".format(selected_model, settings.get('truncation_length_info', 'Unknown'))
+        return
 
-            if shared.model is not None:
-                yield f"Successfully loaded `{selected_model}`."
-            else:
-                yield f"Failed to load `{selected_model}`."
-        except:
-            exc = traceback.format_exc()
-            logger.error('Failed to load the model.')
-            print(exc)
-            yield exc.replace('\n', '\n\n')
+    # Proceed with loading
+    try:
+        yield f"Loading `{selected_model}`..."
+        unload_model()
+        if selected_model != '':
+            shared.model, shared.tokenizer = load_model(selected_model, loader)
 
+        if shared.model is not None:
+            yield f"Successfully loaded `{selected_model}`."
+        else:
+            yield f"Failed to load `{selected_model}`."
+    except:
+        exc = traceback.format_exc()
+        logger.error('Failed to load the model.')
+        print(exc)
+        yield exc.replace('\n', '\n\n')
 
 def load_lora_wrapper(selected_loras):
     yield ("Applying the following LoRAs to {}:\n\n{}".format(shared.model_name, '\n'.join(selected_loras)))
