@@ -340,6 +340,43 @@ def save_instruction_template(model, template):
 
 @functools.lru_cache(maxsize=1)
 def load_gguf_metadata_with_cache(model_file):
+    """
+    Load GGUF metadata with caching and file validation.
+    Returns None if file is invalid or too small.
+    """
+    from pathlib import Path
+    
+    # Convert to Path object
+    model_file = Path(model_file) if not isinstance(model_file, Path) else model_file
+    
+    # CRITICAL: Validate file before loading
+    if not model_file.exists():
+        logger.warning(f"Model file not found: {model_file}")
+        return None
+    
+    # Check file size (must be at least 1KB for valid GGUF)
+    try:
+        file_size = model_file.stat().st_size
+    except Exception as e:
+        logger.error(f"Cannot read file size for {model_file.name}: {e}")
+        return None
+    
+    MIN_VALID_SIZE = 1024  # 1KB minimum
+    
+    if file_size < MIN_VALID_SIZE:
+        logger.warning(f"Model file too small ({file_size} bytes): {model_file.name}")
+        logger.warning(f"Expected minimum: {MIN_VALID_SIZE} bytes")
+        
+        # Auto-delete corrupt files
+        try:
+            model_file.unlink()
+            logger.info(f"Deleted corrupt file: {model_file.name}")
+        except Exception as e:
+            logger.error(f"Could not delete corrupt file: {e}")
+        
+        return None
+    
+    # Now safe to load metadata
     return metadata_gguf.load_metadata(model_file)
 
 
