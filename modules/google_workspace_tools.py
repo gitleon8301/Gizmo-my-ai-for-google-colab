@@ -71,10 +71,8 @@ def _hex_to_rgb_fraction(hex_color: str):
     }
 
 
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-=======
  main
->>>>>>> main
+ main
 def write_text_to_doc(credentials_path: str, document_id: str, text: str) -> str:
     docs_service, _, error = _build_services(credentials_path)
     if error:
@@ -115,12 +113,10 @@ def add_image_to_slide(credentials_path: str, presentation_id: str, slide_number
     requests = [{
         "createImage": {
             "objectId": image_object_id,
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-=======
     requests = [{
         "createImage": {
           main
->>>>>>> main
+ main
             "url": image_url,
             "elementProperties": {
                 "pageObjectId": slide_id,
@@ -143,12 +139,9 @@ def add_image_to_slide(credentials_path: str, presentation_id: str, slide_number
         requests.append(
             {
                 "updatePageElementAltText": {
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-                    "objectId": image_object_id,
-=======
                     "objectId": "{{LAST_CREATED_OBJECT_ID}}",
          main
->>>>>>> main
+ main
                     "title": alt_text.strip()[:300],
                     "description": image_query[:1000],
                 }
@@ -287,11 +280,9 @@ def apply_slide_designer_prompt(credentials_path: str, presentation_id: str, sli
     ).execute()
 
     return "✅ Slide designer applied: " + ", ".join(operations)
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-=======
         body={"requests": requests[:1]},
     ).execute()
 
     return f"✅ Added image for '{image_query}' to slide {slide_number}. Source: {image_url}"
  main
->>>>>>> main
+ main

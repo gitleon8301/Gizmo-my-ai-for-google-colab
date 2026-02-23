@@ -303,6 +303,36 @@ def create_chat_settings_ui():
 
 
 def create_event_handlers():
+    shared.gradio['adaptive_summarize'].click(
+        lambda text: adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['adaptive_actions'].click(
+        lambda text: adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['adaptive_bugs'].click(
+        lambda text: 'Potential issues:\n' + adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['adaptive_task'].click(
+        lambda text: 'Task created from message summary:\n' + adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['provenance_btn'].click(
+        lambda: str(audit.get_timeline('default', 'last-message')),
+        [],
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
 
     # Obsolete variables, kept for compatibility with old extensions
     shared.input_params = gradio(inputs)
@@ -343,10 +373,8 @@ def create_event_handlers():
         gradio('custom_style_enabled', 'custom_style_prompt'),
         show_progress=False)
 
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-=======
  main
->>>>>>> main
+ main
     shared.gradio['google_doc_write'].click(
         run_google_doc_action,
         gradio('gworkspace_credentials_path', 'google_doc_id', 'google_doc_text'),

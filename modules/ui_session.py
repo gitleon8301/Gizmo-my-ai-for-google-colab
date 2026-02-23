@@ -16,6 +16,16 @@ def create_ui():
                 shared.gradio['paste_to_attachment'] = gr.Checkbox(label='Turn long pasted text into attachments in the Chat tab', value=shared.settings['paste_to_attachment'], elem_id='paste_to_attachment')
                 shared.gradio['include_past_attachments'] = gr.Checkbox(label='Include attachments/search results from previous messages in the chat prompt', value=shared.settings['include_past_attachments'])
 
+                gr.Markdown("## Integrations (opt-in)")
+                # Visual mock: [ ] Workflows [ ] Collaboration [ ] Marketplace [ ] SSO [ ] Devtests
+                shared.gradio['enable_workflows'] = gr.Checkbox(label='Enable Workflows', value=shared.settings.get('enable_workflows', False))
+                shared.gradio['enable_collab'] = gr.Checkbox(label='Enable Collaboration', value=shared.settings.get('enable_collab', False))
+                shared.gradio['enable_marketplace'] = gr.Checkbox(label='Enable Marketplace', value=shared.settings.get('enable_marketplace', False))
+                shared.gradio['enable_sso'] = gr.Checkbox(label='Enable SSO/OAuth', value=shared.settings.get('enable_sso', False))
+                shared.gradio['enable_devtests'] = gr.Checkbox(label='Enable Developer Tests', value=shared.settings.get('enable_devtests', False))
+                shared.gradio['integrations_save_btn'] = gr.Button('Save integration toggles', elem_classes='refresh-button')
+                shared.gradio['integrations_status'] = gr.Textbox(label='Integration status', interactive=False)
+
             with gr.Column():
                 gr.Markdown("## Extensions & flags")
                 shared.gradio['save_settings'] = gr.Button('Save extensions settings to user_data/settings.yaml', elem_classes='refresh-button', interactive=not mu)

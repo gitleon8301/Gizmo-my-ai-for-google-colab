@@ -53,12 +53,9 @@ def run_google_doc(credentials_path, document_id, text):
         return "Add credentials path and Google Doc ID first."
 
     try:
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-        return google_workspace_tools.write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
-=======
         return write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
  main
->>>>>>> main
+ main
     except Exception as exc:
         return f"Google Docs action failed: {exc}"
 
@@ -68,12 +65,9 @@ def run_google_slide_image(credentials_path, presentation_id, slide_number, imag
         return "Add credentials path and Google Slides Presentation ID first."
 
     try:
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-        return google_workspace_tools.add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
-=======
         return add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
  main
->>>>>>> main
+ main
     except Exception as exc:
         return f"Google Slides image action failed: {exc}"
 
@@ -83,12 +77,9 @@ def run_google_slide_designer(credentials_path, presentation_id, slide_number, d
         return "Add credentials path and Google Slides Presentation ID first."
 
     try:
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-        return google_workspace_tools.apply_slide_designer_prompt(credentials_path.strip(), presentation_id.strip(), int(slide_number), designer_prompt, slide_text, image_query)
-=======
         return apply_slide_designer_prompt(credentials_path.strip(), presentation_id.strip(), int(slide_number), designer_prompt, slide_text, image_query)
  main
->>>>>>> main
+ main
     except Exception as exc:
         return f"Slide designer failed: {exc}"
 
@@ -96,19 +87,17 @@ def run_google_slide_designer(credentials_path, presentation_id, slide_number, d
 def create_ui():
     with gr.Tab("Lessons", elem_id="lessons-tab"):
         gr.Markdown("## 📚 Lessons Studio")
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
         gr.Markdown("Interactive learning tab with text, voice, visuals, quizzes, connector automations, and Google Workspace copilot actions.")
 
         shared.gradio['lesson_progress_state'] = gr.State([])
 
         with gr.Row():
             with gr.Column(scale=3, elem_classes=['lesson-panel']):
-=======
         gr.Markdown("Interactive learning tab with text, voice, visuals, quizzes, and Google Workspace copilot actions.")
 
         with gr.Row():
             with gr.Column(scale=3):
->>>>>>> main
+ main
                 gr.Markdown("### Lesson Builder")
                 shared.gradio['lesson_topic'] = gr.Textbox(label='Topic', placeholder='Atoms, Fractions, WW2, Photosynthesis...')
                 with gr.Row():
@@ -121,19 +110,16 @@ def create_ui():
                     shared.gradio['lesson_quiz'] = gr.Checkbox(label='Include quiz', value=True)
                     shared.gradio['lesson_visuals'] = gr.Checkbox(label='Include visuals', value=True)
                     shared.gradio['lesson_flashcards'] = gr.Checkbox(label='Include flashcards', value=True)
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
                 with gr.Row():
                     shared.gradio['lesson_concise_mode'] = gr.Checkbox(label='⚡ Fast concise mode', value=True)
                     shared.gradio['lesson_include_summary'] = gr.Checkbox(label='Include short summary', value=True)
                     shared.gradio['lesson_bullet_count'] = gr.Slider(label='Max bullets', minimum=2, maximum=6, step=1, value=4)
-=======
->>>>>>> main
+ main
 
                 shared.gradio['lesson_build_btn'] = gr.Button('Build lesson payload', variant='primary')
                 shared.gradio['lesson_status'] = gr.Textbox(label='Status', interactive=False)
                 shared.gradio['lesson_payload'] = gr.Textbox(label='Lesson output (copy to chat)', lines=14, elem_classes=['add_scrollbar'])
 
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
                 with gr.Row():
                     shared.gradio['lesson_save_progress_btn'] = gr.Button('💾 Save progress')
                     shared.gradio['lesson_progress_status'] = gr.Textbox(label='Progress', interactive=False)
@@ -184,7 +170,6 @@ def create_ui():
                 shared.gradio['lesson_connector_status'] = gr.Textbox(label='Connector status', interactive=False)
                 shared.gradio['lesson_connector_output'] = gr.Textbox(label='Automation prompt output', lines=6)
 
-=======
             with gr.Column(scale=2):
                 gr.Markdown("### Voice + Visual Controls")
                 with gr.Row():
@@ -203,7 +188,7 @@ def create_ui():
                 shared.gradio['lesson_visual_btn'] = gr.Button('🖼 Generate visual prompt to send to AI')
                 shared.gradio['lesson_visual_output'] = gr.Textbox(label='Visual instruction output', lines=6)
 
->>>>>>> main
+ main
         with gr.Accordion('🔗 Google Workspace & Connectors Copilot', open=False):
             gr.Markdown(
                 "Setup docs: [Google Docs API](https://developers.google.com/docs/api/quickstart/python) · "
@@ -212,13 +197,8 @@ def create_ui():
                 "[Google Classroom API](https://developers.google.com/classroom) · "
                 "[GitHub tokens](https://github.com/settings/tokens)"
             )
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-            gr.Markdown("How to connect: create a Google Cloud service account, enable Docs/Slides/Drive APIs, download JSON key, paste key path below, then share target Doc/Slides with `client_email` from that JSON file.")
-            gr.Markdown("JSON key must include: `type`, `project_id`, `private_key_id`, `private_key`, `client_email`, `token_uri`.")
-            gr.Markdown("Use prompt-driven actions: create slide text boxes, recolor background, place images, and move text.")
-=======
             gr.Markdown("Use prompt-driven actions: create slide text boxes, recolor background, place images, and move text." )
->>>>>>> main
+ main
 
             shared.gradio['lesson_credentials'] = gr.Textbox(label='Service account credentials JSON path', placeholder='/content/drive/MyDrive/your-service-account.json')
             with gr.Row():
@@ -242,16 +222,12 @@ def create_ui():
 def create_event_handlers():
     shared.gradio['lesson_build_btn'].click(
         build_lesson_request,
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-        gradio('lesson_topic', 'lesson_level', 'lesson_language', 'lesson_duration', 'lesson_goals', 'lesson_quiz', 'lesson_visuals', 'lesson_flashcards', 'lesson_concise_mode', 'lesson_bullet_count', 'lesson_include_summary'),
-=======
         gradio('lesson_topic', 'lesson_level', 'lesson_language', 'lesson_duration', 'lesson_goals', 'lesson_quiz', 'lesson_visuals', 'lesson_flashcards'),
->>>>>>> main
+ main
         gradio('lesson_status', 'lesson_payload'),
         show_progress=False)
 
     shared.gradio['lesson_visual_btn'].click(
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
         lambda x: ("✅ Manual visual prompt generated.", f"Create an annotated educational image for: {x}\nInclude arrows, labels, and short caption."),
         gradio('lesson_visual_prompt'),
         gradio('lesson_visual_status', 'lesson_visual_output'),
@@ -279,11 +255,10 @@ def create_event_handlers():
         export_lesson_file,
         gradio('lesson_payload', 'lesson_export_format'),
         gradio('lesson_export_status', 'lesson_export_file'),
-=======
         lambda x: f"Create an annotated educational image for: {x}\nInclude arrows, labels, and short caption.",
         gradio('lesson_visual_prompt'),
         gradio('lesson_visual_output'),
->>>>>>> main
+ main
         show_progress=False)
 
     shared.gradio['lesson_doc_write_btn'].click(
@@ -305,13 +280,9 @@ def create_event_handlers():
         show_progress=False)
 
     shared.gradio['lesson_mic_btn'].click(
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-        lambda: '',
-        [],
-=======
         lambda: None,
         None,
->>>>>>> main
+ main
         gradio('lesson_voice_status'),
         js="""() => {
             const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -334,22 +305,19 @@ def create_event_handlers():
         show_progress=False)
 
     shared.gradio['lesson_speak_btn'].click(
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
         lambda text, voice_pref, rate, pitch, custom_voice, lang: '',
         gradio('lesson_voice_text', 'lesson_voice_choice', 'lesson_voice_rate', 'lesson_voice_pitch', 'lesson_voice_custom_name', 'lesson_voice_lang'),
         gradio('lesson_voice_status'),
         js="""(text, voicePref, rate, pitch, customVoice, langFilter) => {
-=======
         lambda: None,
         gradio('lesson_voice_text', 'lesson_voice_choice', 'lesson_voice_rate', 'lesson_voice_pitch'),
         gradio('lesson_voice_status'),
         js="""(text, voicePref, rate, pitch) => {
->>>>>>> main
+ main
             const clean = (text || '').trim();
             if (!clean) return '❌ Enter text first.';
             const synth = window.speechSynthesis;
             const voices = synth.getVoices();
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
             if (!voices || !voices.length) return '⚠️ No browser voices loaded yet. Click "List available browser voices" first.';
             const pref = (voicePref || '').toLowerCase();
             const custom = (customVoice || '').toLowerCase().trim();
@@ -360,17 +328,15 @@ def create_event_handlers():
                 || (pref && findByName(pref))
                 || findByLang()
                 || voices[0];
-=======
             const pref = (voicePref || '').toLowerCase();
             const pick = voices.find(v => v.name.toLowerCase().includes(pref)) || voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0];
->>>>>>> main
+ main
             synth.cancel();
             const u = new SpeechSynthesisUtterance(clean);
             if (pick) u.voice = pick;
             u.rate = Number(rate || 1);
             u.pitch = Number(pitch || 1.05);
             synth.speak(u);
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
             return '✅ Speaking: ' + (pick ? `${pick.name} (${pick.lang})` : 'default voice');
         }""",
         show_progress=False)
@@ -389,20 +355,15 @@ def create_event_handlers():
                 .map((v, i) => `${i + 1}. ${v.name} | ${v.lang}${v.default ? ' | default' : ''}`)
                 .join('\n');
             return [`✅ Loaded ${voices.length} browser voices.`, lines];
-=======
             return '✅ Speaking: ' + (pick ? pick.name : 'default voice');
->>>>>>> main
+ main
         }""",
         show_progress=False)
 
     shared.gradio['lesson_stop_speak_btn'].click(
-<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
-        lambda: '',
-        [],
-=======
         lambda: None,
         None,
->>>>>>> main
+ main
         gradio('lesson_voice_status'),
         js="() => { window.speechSynthesis.cancel(); return '⏹ Speech stopped.'; }",
         show_progress=False)
