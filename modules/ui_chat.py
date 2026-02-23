@@ -6,12 +6,43 @@ import gradio as gr
 from PIL import Image
 
 from modules import chat, shared, ui, utils
+from modules.google_workspace_tools import add_image_to_slide, write_text_to_doc
 from modules.html_generator import chat_html_wrapper
 from modules.text_generation import stop_everything_event
 from modules.utils import gradio
 
 inputs = ('Chat input', 'interface_state')
 reload_arr = ('history', 'name1', 'name2', 'mode', 'chat_style', 'character_menu')
+
+
+def apply_custom_ai_style(chat_input, style_enabled, style_prompt):
+    if not style_enabled or not style_prompt or not style_prompt.strip():
+        return chat_input
+
+    updated_input = chat_input.copy()
+    style_block = f"[Custom AI style instructions]\n{style_prompt.strip()}\n[/Custom AI style instructions]\n\n"
+    updated_input['text'] = f"{style_block}{updated_input.get('text', '')}"
+    return updated_input
+
+
+def run_google_doc_action(credentials_path, document_id, text):
+    if not credentials_path or not document_id:
+        return "Add credentials JSON path and Google Doc ID first."
+
+    try:
+        return write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
+    except Exception as exc:
+        return f"Google Docs action failed: {exc}"
+
+
+def run_google_slide_action(credentials_path, presentation_id, slide_number, image_query):
+    if not credentials_path or not presentation_id:
+        return "Add credentials JSON path and Google Slides Presentation ID first."
+
+    try:
+        return add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
+    except Exception as exc:
+        return f"Google Slides action failed: {exc}"
 
 
 def create_ui():
@@ -80,6 +111,33 @@ def create_ui():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
 
+                with gr.Row(elem_id='chat-automation-row'):
+                    with gr.Accordion('Custom AI style (always visible in Chat tab)', open=False):
+                        shared.gradio['custom_style_enabled'] = gr.Checkbox(value=False, label='Enable custom style/persona')
+                        shared.gradio['custom_style_prompt'] = gr.Textbox(
+                            label='How the AI should behave',
+                            lines=4,
+                            placeholder='Example: Be concise, act like my research co-worker, always include next steps.',
+                            elem_classes=['add_scrollbar']
+                        )
+
+                    with gr.Accordion('Google Workspace actions (Docs/Slides)', open=False):
+                        shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
+                            label='Service account credentials JSON path',
+                            placeholder='/path/to/google-service-account.json',
+                            elem_classes=['add_scrollbar']
+                        )
+                        shared.gradio['google_doc_id'] = gr.Textbox(label='Google Doc ID', placeholder='1Abc...')
+                        shared.gradio['google_doc_text'] = gr.Textbox(label='Text to write to Google Doc', lines=3, elem_classes=['add_scrollbar'])
+                        shared.gradio['google_doc_write'] = gr.Button('Write to Google Doc', elem_classes=['refresh-button'])
+
+                        shared.gradio['google_slides_id'] = gr.Textbox(label='Google Slides Presentation ID', placeholder='1Abc...')
+                        with gr.Row():
+                            shared.gradio['google_slide_number'] = gr.Number(value=1, precision=0, minimum=1, label='Slide number')
+                            shared.gradio['google_slide_image_query'] = gr.Textbox(label='Image query', placeholder='clean modern teamwork photo')
+                        shared.gradio['google_slide_add_image'] = gr.Button('Find image and place on slide', elem_classes=['refresh-button'])
+                        shared.gradio['google_workspace_status'] = gr.Markdown('')
+
         # Hover menu buttons
         with gr.Column(elem_id='chat-buttons'):
             shared.gradio['Regenerate'] = gr.Button('Regenerate (Ctrl + Enter)', elem_id='Regenerate')
@@ -95,7 +153,6 @@ def create_ui():
             with gr.Column():
                 with gr.Row():
                     shared.gradio['start_with'] = gr.Textbox(label='Start reply with', placeholder='Sure thing!', value=shared.settings['start_with'], elem_classes=['add_scrollbar'])
-
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
                 shared.gradio['reasoning_effort'] = gr.Dropdown(value=shared.settings['reasoning_effort'], choices=['low', 'medium', 'high'], label='Reasoning effort', info='Used by GPT-OSS.')
@@ -226,7 +283,12 @@ def create_event_handlers():
 
     shared.gradio['Generate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        lambda x: (x, {"text": "", "files": []}), gradio('textbox'), gradio('Chat input', 'textbox'), show_progress=False).then(
+        lambda x: x, gradio('textbox'), gradio('Chat input'), show_progress=False).then(
+        apply_custom_ai_style,
+        gradio('Chat input', 'custom_style_enabled', 'custom_style_prompt'),
+        gradio('Chat input'),
+        show_progress=False).then(
+        lambda x: {"text": "", "files": []}, None, gradio('textbox'), show_progress=False).then(
         lambda: None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.add("_generating")').then(
         chat.generate_chat_reply_wrapper, gradio(inputs), gradio('display', 'history'), show_progress=False).then(
         None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.remove("_generating")').then(
@@ -234,11 +296,28 @@ def create_event_handlers():
 
     shared.gradio['textbox'].submit(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        lambda x: (x, {"text": "", "files": []}), gradio('textbox'), gradio('Chat input', 'textbox'), show_progress=False).then(
+        lambda x: x, gradio('textbox'), gradio('Chat input'), show_progress=False).then(
+        apply_custom_ai_style,
+        gradio('Chat input', 'custom_style_enabled', 'custom_style_prompt'),
+        gradio('Chat input'),
+        show_progress=False).then(
+        lambda x: {"text": "", "files": []}, None, gradio('textbox'), show_progress=False).then(
         lambda: None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.add("_generating")').then(
         chat.generate_chat_reply_wrapper, gradio(inputs), gradio('display', 'history'), show_progress=False).then(
         None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.remove("_generating")').then(
         None, None, None, js=f'() => {{{ui.audio_notification_js}}}')
+
+    shared.gradio['google_doc_write'].click(
+        run_google_doc_action,
+        gradio('gworkspace_credentials_path', 'google_doc_id', 'google_doc_text'),
+        gradio('google_workspace_status'),
+        show_progress=False)
+
+    shared.gradio['google_slide_add_image'].click(
+        run_google_slide_action,
+        gradio('gworkspace_credentials_path', 'google_slides_id', 'google_slide_number', 'google_slide_image_query'),
+        gradio('google_workspace_status'),
+        show_progress=False)
 
     shared.gradio['Regenerate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
