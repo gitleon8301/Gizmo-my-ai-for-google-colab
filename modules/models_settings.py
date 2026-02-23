@@ -56,7 +56,7 @@ def get_model_metadata(model):
         path = model_path
         if path.is_file():
             model_file = path
-        else:
+        elif path.exists():
             gguf_files = list(path.glob('*.gguf'))
             if not gguf_files:
                 error_msg = f"No .gguf models found in directory: {path}"
@@ -64,6 +64,32 @@ def get_model_metadata(model):
                 raise FileNotFoundError(error_msg)
 
             model_file = gguf_files[0]
+        else:
+            # The selected model is expected to be a GGUF filename in model_dir.
+            # If it doesn't exist there, surface a clear error instead of treating
+            # the missing filename as a directory.
+            requested_name = Path(model).name
+            model_root = Path(shared.args.model_dir)
+            candidates = sorted(
+                [
+                    p for p in model_root.rglob('*.gguf')
+                    if p.name.lower() == requested_name.lower()
+                ],
+                key=lambda p: str(p)
+            )
+
+            if candidates:
+                model_file = candidates[0]
+                logger.warning(
+                    f"Could not find GGUF at '{path}', using '{model_file}' instead."
+                )
+            else:
+                error_msg = (
+                    f"Selected GGUF model file was not found: {path}. "
+                    f"Download or copy '{requested_name}' into '{model_root}' and try again."
+                )
+                logger.error(error_msg)
+                raise FileNotFoundError(error_msg)
 
         metadata = load_gguf_metadata_with_cache(model_file)
 
@@ -490,8 +516,15 @@ def update_gpu_layers_and_vram(loader, model, gpu_layers, ctx_size, cache_type, 
         else:
             return (0, gpu_layers) if auto_adjust else 0
 
-    # Get model settings including user preferences
-    model_settings = get_model_metadata(model)
+    try:
+        # Get model settings including user preferences
+        model_settings = get_model_metadata(model)
+    except FileNotFoundError as e:
+        logger.warning(str(e))
+        if for_ui:
+            return (f"<div id=\"vram-info\"'>Unable to estimate VRAM: {e}</div>", gr.update()) if auto_adjust else f"<div id=\"vram-info\"'>Unable to estimate VRAM: {e}</div>"
+        else:
+            return (0, gpu_layers) if auto_adjust else 0
 
     current_layers = gpu_layers
     max_layers = model_settings.get('max_gpu_layers', 256)
@@ -515,8 +548,15 @@ def update_gpu_layers_and_vram(loader, model, gpu_layers, ctx_size, cache_type, 
                 while current_layers > 0 and estimate_vram(model, current_layers, ctx_size, cache_type) > available_vram - tolerance:
                     current_layers -= 1
 
-    # Calculate VRAM with current layers
-    vram_usage = estimate_vram(model, current_layers, ctx_size, cache_type)
+    try:
+        # Calculate VRAM with current layers
+        vram_usage = estimate_vram(model, current_layers, ctx_size, cache_type)
+    except FileNotFoundError as e:
+        logger.warning(str(e))
+        if for_ui:
+            return (f"<div id=\"vram-info\"'>Unable to estimate VRAM: {e}</div>", gr.update(value=current_layers, maximum=max_layers)) if auto_adjust else f"<div id=\"vram-info\"'>Unable to estimate VRAM: {e}</div>"
+        else:
+            return (0, current_layers) if auto_adjust else 0
 
     if for_ui:
         vram_info = f"<div id=\"vram-info\"'>Estimated VRAM to load the model: <span class=\"value\">{vram_usage:.0f} MiB</span></div>"
