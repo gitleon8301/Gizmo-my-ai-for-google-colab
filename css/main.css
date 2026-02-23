@@ -1814,3 +1814,76 @@ tr + tr th { border-top: 1px solid; }
 
 thead + tbody tr:first-child td,
 thead + tbody tr:first-child th { border-top: 1px solid; }
+
+
+/* Connector + button near chat input */
+.gizmo-connector-wrap {
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    z-index: 70;
+}
+
+#chat-input {
+    position: relative;
+}
+
+.gizmo-connector-fab {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color-primary);
+    background: var(--block-background-fill);
+    color: var(--body-text-color);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.gizmo-connector-panel {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: 38px;
+    width: 240px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color-primary);
+    background: var(--body-background-fill);
+    box-shadow: 0 10px 30px rgba(0,0,0,.12);
+}
+
+.gizmo-connector-panel.open {
+    display: block;
+}
+
+.gizmo-connector-title {
+    font-weight: 600;
+    padding: 4px 6px 8px;
+}
+
+.gizmo-connector-item {
+    display: block;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 7px;
+    color: inherit;
+}
+
+.gizmo-connector-item:hover {
+    background: var(--background-fill-secondary);
+}
+
+.gizmo-connector-item .name {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.gizmo-connector-item .desc {
+    display: block;
+    font-size: 12px;
+    opacity: .8;
+}
