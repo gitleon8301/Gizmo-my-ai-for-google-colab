@@ -439,44 +439,36 @@ def create_chat_settings_ui():
 
 
 def create_event_handlers():
-    shared.gradio['adaptive_summarize'].click(
-        lambda text: adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
-        gradio('textbox'),
+    shared.gradio['adaptive_summarize_btn'].click(
+        lambda text: summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('adaptive_text'),
         gradio('adaptive_output'),
         show_progress=False,
     )
-    shared.gradio['adaptive_actions'].click(
-        lambda text: adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
-        gradio('textbox'),
+    shared.gradio['adaptive_actions_btn'].click(
+        lambda text: suggest_actions(text if isinstance(text, str) else str(text)),
+        gradio('adaptive_text'),
         gradio('adaptive_output'),
         show_progress=False,
     )
-    shared.gradio['adaptive_bugs'].click(
-        lambda text: 'Potential issues:\n' + adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
-        gradio('textbox'),
+    shared.gradio['adaptive_bugs_btn'].click(
+        lambda text: 'Potential issues\n' + summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('adaptive_text'),
         gradio('adaptive_output'),
         show_progress=False,
     )
-    shared.gradio['adaptive_task'].click(
-        lambda text: 'Task created from message summary:\n' + adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
-        gradio('textbox'),
+    shared.gradio['adaptive_task_btn'].click(
+        lambda text: 'Task created from message summary\n' + summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('adaptive_text'),
         gradio('adaptive_output'),
         show_progress=False,
     )
     shared.gradio['provenance_btn'].click(
-        lambda: str(audit.get_timeline('default', 'last-message')),
-        [],
+        lambda: str(list_steps('default')),
+        None,
         gradio('adaptive_output'),
         show_progress=False,
     )
-
-    _ensure_adaptive_keys()
-
-    _ensure_adaptive_keys()
-
-    _ensure_adaptive_keys()
-
-    _ensure_adaptive_keys()
 
     # Obsolete variables, kept for compatibility with old extensions
     shared.input_params = gradio(inputs)
