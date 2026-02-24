@@ -15,6 +15,15 @@ from modules.chat_templates import (
     get_template_choices,
 )
 from modules.context_manager import ContextManager
+from modules.ai_workspace import (
+    build_repo_map,
+    issue_to_plan,
+    pr_intelligence,
+    run_quality_gates,
+    start_parallel_branches,
+    synthesize_conflicts,
+    sync_branches_with_main,
+)
 from modules.adaptive_ui import summarize_text, suggest_actions
 from modules.audit import list_steps
 from modules.html_generator import chat_html_wrapper
