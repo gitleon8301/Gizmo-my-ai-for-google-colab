@@ -361,12 +361,8 @@ def create_ui():
 
                 with gr.Accordion('🔧 GitHub Agent (Beta)', open=False):
                     gh_defaults = _load_github_config()
-<<<<<<< codex/add-model-download-hub-extension-aisonu
-                    shared.gradio['gh_repo_url'] = gr.Textbox(label='Repository URL (optional)', value=gh_defaults.get('repo_url', ''), placeholder='https://github.com/owner/repo.git')
-                    shared.gradio['gh_repo_path'] = gr.Textbox(label='Local repository path', value=gh_defaults.get('repo_path', '.'))
-=======
                     shared.gradio['gh_repo_path'] = gr.Textbox(label='Repository path', value=gh_defaults.get('repo_path', '.'))
->>>>>>> main
+ main
                     shared.gradio['gh_base_branch'] = gr.Textbox(label='Base branch', value=gh_defaults.get('base_branch', 'main'))
                     shared.gradio['gh_token'] = gr.Textbox(label='GitHub token (optional, for gh auth)', type='password', value=gh_defaults.get('token', ''))
                     shared.gradio['gh_task'] = gr.Textbox(label='Task for AI coding agent', lines=4, placeholder='Describe the code change to implement...')
@@ -723,13 +719,9 @@ def create_event_handlers():
 
     shared.gradio['gh_connect_btn'].click(
         github_connect,
-<<<<<<< codex/add-model-download-hub-extension-aisonu
-        gradio('gh_repo_url', 'gh_repo_path', 'gh_base_branch', 'gh_token'),
-        gradio('gh_status', 'gh_repo_path', 'gh_repo_url'),
-=======
         gradio('gh_repo_path', 'gh_base_branch', 'gh_token'),
         gradio('gh_status', 'gh_repo_path'),
->>>>>>> main
+ main
         show_progress=False,
     )
 
