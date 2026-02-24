@@ -25,7 +25,9 @@ def _ensure_git_identity(repo: Path) -> None:
 
 
 def _workspace_dir(repo: Path) -> Path:
-    p = repo / "user_data" / "ai_workspace"
+    # BUG FIX: use repo root level folder, NOT user_data/ which is a symlink
+    # to Google Drive in Colab — git cannot track files written through symlinks
+    p = repo / "ai_workspace"
     p.mkdir(parents=True, exist_ok=True)
     return p
 
