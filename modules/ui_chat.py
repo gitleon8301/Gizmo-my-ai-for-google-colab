@@ -331,6 +331,8 @@ def create_event_handlers():
         show_progress=False,
     )
 
+    _ensure_adaptive_keys()
+
     # Obsolete variables, kept for compatibility with old extensions
     shared.input_params = gradio(inputs)
     shared.reload_inputs = gradio(reload_arr)
