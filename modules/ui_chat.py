@@ -90,7 +90,10 @@ MESSAGE_ACTIONS = MessageActions()
 CONTEXT_MANAGER = ContextManager()
 
 
+# ── GitHub Agent — config & persistence ─────────────────────────────────────
+
 def _github_config_path():
+    # Save to user_data (Drive-backed) so token survives Colab resets
     p = Path("user_data") / "github_agent.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
@@ -99,16 +102,49 @@ def _github_config_path():
 def _load_github_config():
     p = _github_config_path()
     if not p.exists():
-        return {"repo_path": ".", "base_branch": "main", "token": ""}
+        return {"repo_path": "/content/text-generation-webui", "base_branch": "main", "token": ""}
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
-        return {"repo_path": ".", "base_branch": "main", "token": ""}
+        return {"repo_path": "/content/text-generation-webui", "base_branch": "main", "token": ""}
 
 
 def _save_github_config(cfg):
     _github_config_path().write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
+
+def _session_path(repo: Path):
+    p = repo / "github_agent_tasks"
+    p.mkdir(parents=True, exist_ok=True)
+    return p / "session.json"
+
+
+def _load_session(repo_path: str):
+    try:
+        p = _session_path(Path(repo_path).resolve())
+        if p.exists():
+            return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {"log": [], "branches": []}
+
+
+def _save_session(repo_path: str, session: dict):
+    try:
+        p = _session_path(Path(repo_path).resolve())
+        p.write_text(json.dumps(session, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _session_add_log(session: dict, role: str, text: str) -> dict:
+    import copy
+    s = copy.deepcopy(session)
+    s["log"].append({"role": role, "text": text, "time": datetime.now().strftime("%H:%M:%S")})
+    return s
+
+
+# ── GitHub Agent — git helpers ───────────────────────────────────────────────
 
 def _run_git(args, cwd):
     proc = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True)
@@ -116,7 +152,6 @@ def _run_git(args, cwd):
 
 
 def _ensure_git_identity(repo: Path):
-    """Set a fallback git identity if none is configured — required in Colab."""
     rc, out, _ = _run_git(["config", "user.email"], repo)
     if rc != 0 or not out.strip():
         _run_git(["config", "user.email", "gizmo-agent@colab.local"], repo)
@@ -125,16 +160,114 @@ def _ensure_git_identity(repo: Path):
         _run_git(["config", "user.name", "Gizmo Agent"], repo)
 
 
+def _push_branch(repo: Path, branch: str):
+    _ensure_git_identity(repo)
+    code, out, err = _run_git(["push", "-u", "origin", branch], repo)
+    return code, out, err
+
+
+def _open_pr_gh(repo: Path, branch: str, title: str, body: str):
+    gh_check = subprocess.run(["bash", "-lc", "command -v gh"], text=True, capture_output=True)
+    if gh_check.returncode != 0:
+        return None, f"✅ Branch '{branch}' pushed. Open PR manually on GitHub (gh CLI not installed)."
+    cmd = ["gh", "pr", "create", "--title", title, "--body", body, "--head", branch]
+    proc = subprocess.run(cmd, cwd=repo, text=True, capture_output=True)
+    if proc.returncode != 0:
+        return None, f"⚠️ gh CLI failed: {(proc.stderr or proc.stdout).strip()}"
+    url = (proc.stdout or "").strip().splitlines()[-1] if (proc.stdout or "").strip() else ""
+    return url, f"✅ PR created: {url}"
+
+
+# ── GitHub Agent — render ────────────────────────────────────────────────────
+
+def render_agent_chat_html(session: dict) -> str:
+    log = session.get("log", [])
+    if not log:
+        return (
+            "<div id='gh-chat-log' style='height:260px;overflow-y:auto;padding:10px;"
+            "background:#0d0d1a;border-radius:8px;font-size:.87em'>"
+            "<div style='color:#555;text-align:center;padding-top:80px'>No messages yet — "
+            "connect a repo and start typing below 👇</div></div>"
+        )
+    colors = {"system": "#8ec8ff", "user": "#e0e0ff", "agent": "#7aff9a", "error": "#ff7a7a"}
+    icons  = {"system": "⚙️", "user": "👤", "agent": "🤖", "error": "❌"}
+    rows = []
+    for m in log:
+        role = m.get("role", "system")
+        color = colors.get(role, "#ccc")
+        icon  = icons.get(role, "•")
+        time  = m.get("time", "")
+        text  = m.get("text", "").replace("\n", "<br>")
+        rows.append(
+            f"<div style='margin-bottom:8px'>"
+            f"<span style='color:{color};font-weight:600'>{icon} {role.title()}</span>"
+            f"<span style='color:#555;font-size:.82em;margin-left:8px'>{time}</span>"
+            f"<div style='margin-top:3px;color:#d0d0e8;padding-left:20px'>{text}</div></div>"
+        )
+    body = "".join(rows)
+    return (
+        f"<div id='gh-chat-log' style='height:260px;overflow-y:auto;padding:10px;"
+        f"background:#0d0d1a;border-radius:8px;font-size:.87em'>{body}</div>"
+        f"<script>var el=document.getElementById('gh-chat-log');if(el)el.scrollTop=el.scrollHeight;</script>"
+    )
+
+
+def render_branches_html(session: dict) -> str:
+    branches = session.get("branches", [])
+    if not branches:
+        return "<div style='color:#555;font-size:.85em;padding:6px'>No active branches yet.</div>"
+    status_colors = {"ready": "#7aff9a", "pushed": "#8ec8ff", "failed": "#ff7a7a", "merged": "#f39c12"}
+    row_parts = []
+    for b in branches:
+        bstatus = b.get("status", "ready")
+        bcolor = status_colors.get(bstatus, "#ccc")
+        icon = "✅" if bstatus == "pushed" else "🔀" if bstatus == "merged" else "❌" if bstatus == "failed" else "🌿"
+        row_parts.append(
+            f"<tr>"
+            f"<td style='padding:4px 8px;font-family:monospace;font-size:.82em;color:#8ec8ff'>{b.get('name','')}</td>"
+            f"<td style='padding:4px 8px;color:#aaa'>{b.get('role','')}</td>"
+            f"<td style='padding:4px 8px;color:#aaa'>{b.get('model','current')}</td>"
+            f"<td style='padding:4px 8px;color:{bcolor}'>{icon} {bstatus}</td>"
+            f"</tr>"
+        )
+    rows = "".join(row_parts)
+    return (
+        f"<table style='width:100%;border-collapse:collapse;font-size:.85em'>"
+        f"<thead><tr style='color:#555;border-bottom:1px solid #2a2a4a'>"
+        f"<th style='text-align:left;padding:4px 8px'>Branch</th>"
+        f"<th style='text-align:left;padding:4px 8px'>Role</th>"
+        f"<th style='text-align:left;padding:4px 8px'>Model</th>"
+        f"<th style='text-align:left;padding:4px 8px'>Status</th>"
+        f"</tr></thead><tbody>{rows}</tbody></table>"
+    )
+
+
+def github_status_html(status, branch, pr_url):
+    if not status:
+        return "<div class='gh-status-bar gh-idle'>🔧 GitHub Agent — not connected</div>"
+    color = "#2ecc71" if "✅" in status else "#e74c3c" if "❌" in status else "#f39c12"
+    branch_pill = f"<span class='gh-branch-pill'>🌿 {branch}</span>" if branch else ""
+    pr_link = f" <a href='{pr_url}' target='_blank' class='gh-pr-link'>View PR →</a>" if pr_url else ""
+    return (
+        f"<div class='gh-status-bar' style='border-left:3px solid {color}'>"
+        f"{status}{branch_pill}{pr_link}</div>"
+    )
+
+
+# ── GitHub Agent — core actions ──────────────────────────────────────────────
+
 def github_connect(repo_path, base_branch, token):
-    # BUG FIX 1+2: save config AND embed token into the remote URL so push works
-    cfg = {"repo_path": (repo_path or ".").strip() or ".", "base_branch": (base_branch or "main").strip() or "main", "token": (token or "").strip()}
+    cfg = {
+        "repo_path": (repo_path or "/content/text-generation-webui").strip(),
+        "base_branch": (base_branch or "main").strip() or "main",
+        "token": (token or "").strip(),
+    }
     repo = Path(cfg["repo_path"]).resolve()
     if not repo.exists() or not (repo / ".git").exists():
-        return "❌ Invalid repository path (missing .git directory).", ""
+        return "❌ Invalid repository path (missing .git directory).", "", "{}", ""
     code, out, err = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], repo)
     if code != 0:
-        return f"❌ Git repo check failed: {err or out}", ""
-    # Embed token into remote URL so git push authenticates without gh CLI
+        return f"❌ Git repo check failed: {err or out}", "", "{}", ""
     if cfg["token"]:
         rc, remote_url, _ = _run_git(["remote", "get-url", "origin"], repo)
         if rc == 0 and remote_url.startswith("https://") and "@" not in remote_url:
@@ -142,27 +275,46 @@ def github_connect(repo_path, base_branch, token):
             _run_git(["remote", "set-url", "origin", authed_url], repo)
     _ensure_git_identity(repo)
     _save_github_config(cfg)
-    return f"✅ Connected to {repo} (current branch: {out})", str(repo)
+    session = _load_session(cfg["repo_path"])
+    status_msg = f"✅ Connected to {repo} (branch: {out})"
+    session = _session_add_log(session, "system", status_msg)
+    _save_session(cfg["repo_path"], session)
+    return status_msg, str(repo), json.dumps(session), render_agent_chat_html(session)
 
 
-def github_create_branch(task_text, mode, reasoning_effort, repo_path, base_branch):
-    # BUG FIX 3: renamed 'thinking' → 'reasoning_effort' to match what the UI sends
+def github_agent_send(user_msg, session_json, repo_path):
+    """Add a user message to the agent chat log."""
+    if not (user_msg or "").strip():
+        return session_json, render_agent_chat_html(json.loads(session_json or "{}"))
+    try:
+        session = json.loads(session_json or "{}")
+    except Exception:
+        session = {"log": [], "branches": []}
+    session = _session_add_log(session, "user", user_msg.strip())
+    _save_session(repo_path or ".", session)
+    return json.dumps(session), render_agent_chat_html(session)
+
+
+def github_create_branch(task_text, mode, reasoning_effort, repo_path, base_branch, session_json="{}"):
     repo = Path((repo_path or ".").strip() or ".").resolve()
     if not repo.exists() or not (repo / ".git").exists():
-        return "❌ Invalid repository path.", "", ""
+        return "❌ Invalid repository path.", "", "", session_json, render_agent_chat_html(json.loads(session_json or "{}"))
     if not (task_text or "").strip():
-        return "❌ Task is required.", "", ""
+        return "❌ Task is required.", "", "", session_json, render_agent_chat_html(json.loads(session_json or "{}"))
+    try:
+        session = json.loads(session_json or "{}")
+    except Exception:
+        session = {"log": [], "branches": []}
 
     _ensure_git_identity(repo)
     branch = f"gizmo/{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     _run_git(["checkout", base_branch or "main"], repo)
     code, out, err = _run_git(["checkout", "-b", branch], repo)
     if code != 0:
-        return f"❌ Could not create branch: {err or out}", "", ""
+        msg = f"❌ Could not create branch: {err or out}"
+        session = _session_add_log(session, "error", msg)
+        return msg, "", "", json.dumps(session), render_agent_chat_html(session)
 
-    # BUG FIX: write task file to repo root level folder, NOT inside user_data/
-    # user_data/ is a symlink created by the launcher pointing to Google Drive,
-    # so git cannot track files written there and the commit silently has nothing to stage.
     tasks_dir = repo / "github_agent_tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -171,51 +323,225 @@ def github_create_branch(task_text, mode, reasoning_effort, repo_path, base_bran
         f"# GitHub Agent Task\n\n- Mode: {mode}\n- Reasoning effort: {reasoning_effort}\n- Branch: {branch}\n\n## Instruction\n{task_text}\n",
         encoding="utf-8",
     )
-
-    # Use the relative path from repo root so git can find it reliably
     rel_path = str(task_file.relative_to(repo))
     _run_git(["add", rel_path], repo)
-
-    # Verify something is actually staged before committing
     rc_staged, staged_out, _ = _run_git(["diff", "--cached", "--name-only"], repo)
     if not staged_out.strip():
-        return f"❌ Commit failed: nothing was staged. Task file path: {rel_path}", "", ""
-
+        msg = f"❌ Nothing staged. Path: {rel_path}"
+        session = _session_add_log(session, "error", msg)
+        return msg, "", "", json.dumps(session), render_agent_chat_html(session)
     code, out, err = _run_git(["commit", "-m", f"chore: start github agent task ({branch})"], repo)
     if code != 0:
-        return f"❌ Commit failed: {err or out}", "", ""
-    return f"✅ Branch ready: {branch}. Task file committed.", branch, str(task_file)
+        msg = f"❌ Commit failed: {err or out}"
+        session = _session_add_log(session, "error", msg)
+        return msg, "", "", json.dumps(session), render_agent_chat_html(session)
+
+    if "branches" not in session:
+        session["branches"] = []
+    session["branches"].append({"name": branch, "role": "single", "model": "current", "status": "ready"})
+    status_msg = f"✅ Branch ready: {branch}"
+    session = _session_add_log(session, "agent", status_msg)
+    _save_session(str(repo), session)
+    return status_msg, branch, str(task_file), json.dumps(session), render_agent_chat_html(session)
 
 
-def github_open_pr(repo_path, branch, title, body):
+def github_open_pr(repo_path, branch, title, body, session_json="{}"):
     cfg = _load_github_config()
     repo = Path((repo_path or cfg.get("repo_path") or ".")).resolve()
-    if not repo.exists() or not (repo / ".git").exists():
-        return "❌ Invalid repository path.", ""
-    if not branch:
-        return "❌ Create a branch first.", ""
+    try:
+        session = json.loads(session_json or "{}")
+    except Exception:
+        session = {"log": [], "branches": []}
 
-    # BUG FIX 4: ensure identity is set before push (needed for any rebase/merge during push)
+    if not repo.exists() or not (repo / ".git").exists():
+        msg = "❌ Invalid repository path."
+        session = _session_add_log(session, "error", msg)
+        return msg, "", json.dumps(session), render_agent_chat_html(session)
+    if not branch:
+        msg = "❌ Create a branch first."
+        session = _session_add_log(session, "error", msg)
+        return msg, "", json.dumps(session), render_agent_chat_html(session)
+
     _ensure_git_identity(repo)
     code, out, err = _run_git(["push", "-u", "origin", branch], repo)
     if code != 0:
-        return f"❌ Push failed: {err or out}\n\nTip: Make sure you pasted your GitHub token in the Connect step.", ""
+        msg = f"❌ Push failed: {err or out}\n\nTip: Check your GitHub token in Connect."
+        session = _session_add_log(session, "error", msg)
+        return msg, "", json.dumps(session), render_agent_chat_html(session)
 
-    gh_check = subprocess.run(["bash", "-lc", "command -v gh"], text=True, capture_output=True)
-    if gh_check.returncode != 0:
-        return f"✅ Branch '{branch}' pushed. Open a PR manually on GitHub, or install the GitHub CLI (`gh`) to auto-create PRs.", ""
+    for b in session.get("branches", []):
+        if b.get("name") == branch:
+            b["status"] = "pushed"
 
-    cmd = ["gh", "pr", "create", "--title", title or f"AI: {branch}", "--body", body or "Automated PR by Gizmo GitHub Agent", "--head", branch]
-    proc = subprocess.run(cmd, cwd=repo, text=True, capture_output=True)
-    if proc.returncode != 0:
-        return f"⚠️ Branch pushed, but PR creation failed: {(proc.stderr or proc.stdout).strip()}", ""
-    pr_url = (proc.stdout or "").strip().splitlines()[-1] if (proc.stdout or "").strip() else ""
-    return "✅ Pull request created.", pr_url
+    pr_url, pr_msg = _open_pr_gh(repo, branch, title or f"AI: {branch}", body or "Automated PR by Gizmo GitHub Agent")
+    session = _session_add_log(session, "agent", pr_msg)
+    _save_session(str(repo), session)
+    return pr_msg, pr_url or "", json.dumps(session), render_agent_chat_html(session)
 
+
+def github_launch_multi_agent(task, selected_roles, model_override, repo_path, base_branch, session_json="{}"):
+    """Create one branch per selected agent role, all from the same base branch."""
+    repo = Path((repo_path or ".").strip() or ".").resolve()
+    try:
+        session = json.loads(session_json or "{}")
+    except Exception:
+        session = {"log": [], "branches": []}
+
+    if not repo.exists() or not (repo / ".git").exists():
+        msg = "❌ Invalid repository path."
+        session = _session_add_log(session, "error", msg)
+        return msg, "{}", render_agent_chat_html(session), render_branches_html(session)
+    if not (task or "").strip():
+        msg = "❌ Task is required."
+        session = _session_add_log(session, "error", msg)
+        return msg, session_json, render_agent_chat_html(session), render_branches_html(session)
+    if not selected_roles:
+        msg = "❌ Select at least one agent role."
+        session = _session_add_log(session, "error", msg)
+        return msg, session_json, render_agent_chat_html(session), render_branches_html(session)
+
+    _ensure_git_identity(repo)
+    model_name = (model_override or "").strip() or "current model"
+    stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    tasks_dir = repo / "github_agent_tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+
+    if "branches" not in session:
+        session["branches"] = []
+
+    launched = []
+    failed = []
+    for role in selected_roles:
+        role_slug = role.lower().replace(" ", "-")
+        branch = f"gizmo/{role_slug}-{stamp}"
+        _run_git(["checkout", base_branch or "main"], repo)
+        code, out, err = _run_git(["checkout", "-b", branch], repo)
+        if code != 0:
+            failed.append(role)
+            session = _session_add_log(session, "error", f"❌ Branch failed for {role}: {err or out}")
+            continue
+
+        task_file = tasks_dir / f"task_{role_slug}_{stamp}.md"
+        task_file.write_text(
+            f"# Agent Task — {role}\n\n"
+            f"- Role: {role}\n"
+            f"- Assigned model: {model_name}\n"
+            f"- Branch: {branch}\n"
+            f"- Base: {base_branch or 'main'}\n\n"
+            f"## Role Instructions\n"
+            f"You are the **{role}** agent. Focus only on the {role.lower()} aspect of this task.\n\n"
+            f"## Task\n{task.strip()}\n",
+            encoding="utf-8",
+        )
+        rel_path = str(task_file.relative_to(repo))
+        _run_git(["add", rel_path], repo)
+        rc2, staged, _ = _run_git(["diff", "--cached", "--name-only"], repo)
+        if not staged.strip():
+            failed.append(role)
+            session = _session_add_log(session, "error", f"❌ Nothing staged for {role}")
+            continue
+        rc3, _, cerr = _run_git(["commit", "-m", f"chore(ai-agent): launch {role} agent ({branch})"], repo)
+        if rc3 != 0:
+            failed.append(role)
+            session = _session_add_log(session, "error", f"❌ Commit failed for {role}: {cerr}")
+            continue
+
+        session["branches"].append({"name": branch, "role": role, "model": model_name, "status": "ready"})
+        launched.append(branch)
+        session = _session_add_log(session, "agent", f"🌿 [{role}] Branch ready: `{branch}` — assigned to {model_name}")
+
+    if launched:
+        summary = f"✅ Launched {len(launched)} agent(s): {', '.join(selected_roles if not failed else [r for r in selected_roles if r not in failed])}"
+        if failed:
+            summary += f" | ❌ Failed: {', '.join(failed)}"
+        session = _session_add_log(session, "system", summary)
+    else:
+        summary = f"❌ All agents failed. Check repo connection."
+
+    _save_session(str(repo), session)
+    return summary, json.dumps(session), render_agent_chat_html(session), render_branches_html(session)
+
+
+def github_merge_all_pr(repo_path, base_branch, pr_title, session_json="{}"):
+    """Push all ready branches and create a single merge PR into base branch."""
+    cfg = _load_github_config()
+    repo = Path((repo_path or cfg.get("repo_path") or ".")).resolve()
+    try:
+        session = json.loads(session_json or "{}")
+    except Exception:
+        session = {"log": [], "branches": []}
+
+    if not repo.exists() or not (repo / ".git").exists():
+        msg = "❌ Invalid repository path."
+        session = _session_add_log(session, "error", msg)
+        return msg, "", json.dumps(session), render_agent_chat_html(session), render_branches_html(session)
+
+    branches = [b for b in session.get("branches", []) if b.get("status") in ("ready", "pushed")]
+    if not branches:
+        msg = "❌ No active branches to merge. Launch agents first."
+        session = _session_add_log(session, "error", msg)
+        return msg, "", json.dumps(session), render_agent_chat_html(session), render_branches_html(session)
+
+    _ensure_git_identity(repo)
+    stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    merge_branch = f"gizmo/merge-all-{stamp}"
+
+    # Create integration branch from base
+    _run_git(["checkout", base_branch or "main"], repo)
+    code, out, err = _run_git(["checkout", "-b", merge_branch], repo)
+    if code != 0:
+        msg = f"❌ Could not create merge branch: {err or out}"
+        session = _session_add_log(session, "error", msg)
+        return msg, "", json.dumps(session), render_agent_chat_html(session), render_branches_html(session)
+
+    session = _session_add_log(session, "system", f"🔀 Created merge branch: `{merge_branch}`")
+
+    push_results = []
+    for b in branches:
+        branch_name = b.get("name", "")
+        # Push each agent branch first
+        _run_git(["checkout", branch_name], repo)
+        rc, out, err = _run_git(["push", "-u", "origin", branch_name], repo)
+        if rc == 0:
+            b["status"] = "pushed"
+            push_results.append(branch_name)
+            session = _session_add_log(session, "agent", f"⬆️ Pushed: `{branch_name}`")
+        else:
+            session = _session_add_log(session, "error", f"❌ Push failed for `{branch_name}`: {err or out}")
+
+    # Switch back to merge branch and merge all pushed branches
+    _run_git(["checkout", merge_branch], repo)
+    merge_ok = []
+    for branch_name in push_results:
+        rc, out, err = _run_git(["merge", "--no-ff", branch_name, "-m", f"merge: {branch_name} into {merge_branch}"], repo)
+        if rc == 0:
+            merge_ok.append(branch_name)
+            for b in session["branches"]:
+                if b.get("name") == branch_name:
+                    b["status"] = "merged"
+        else:
+            _run_git(["merge", "--abort"], repo)
+            session = _session_add_log(session, "error", f"⚠️ Merge conflict in `{branch_name}` — skipped")
+
+    # Push merge branch
+    rc, out, err = _run_git(["push", "-u", "origin", merge_branch], repo)
+    if rc != 0:
+        msg = f"❌ Push of merge branch failed: {err or out}"
+        session = _session_add_log(session, "error", msg)
+        _save_session(str(repo), session)
+        return msg, "", json.dumps(session), render_agent_chat_html(session), render_branches_html(session)
+
+    # Create the PR
+    branch_list = "\n".join(f"- `{b}`" for b in merge_ok)
+    body = f"## Multi-agent merge PR\n\nMerges {len(merge_ok)} agent branch(es) into `{base_branch or 'main'}`:\n\n{branch_list}\n\nGenerated by Gizmo GitHub Agent."
+    pr_url, pr_msg = _open_pr_gh(repo, merge_branch, pr_title or f"AI: merge {len(merge_ok)} agents → {base_branch or 'main'}", body)
+    session = _session_add_log(session, "agent", f"🎉 {pr_msg}")
+    _save_session(str(repo), session)
+    final_msg = f"✅ Merge PR created from {len(merge_ok)} branch(es)." if pr_url else pr_msg
+    return final_msg, pr_url or "", json.dumps(session), render_agent_chat_html(session), render_branches_html(session)
 
 
 def github_send_to_chat(gh_status, gh_branch, gh_task, gh_pr_url):
-    """Format current GitHub agent state as a chat message so the AI can see it."""
     lines = ["🔧 **GitHub Agent Update**"]
     if gh_status:
         lines.append(f"**Status:** {gh_status}")
@@ -228,20 +554,8 @@ def github_send_to_chat(gh_status, gh_branch, gh_task, gh_pr_url):
     return {"text": "\n".join(lines), "files": []}
 
 
-def github_status_html(status, branch, pr_url):
-    """Render a compact status bar for the main panel."""
-    if not status:
-        return "<div class='gh-status-bar gh-idle'>🔧 GitHub Agent — not connected</div>"
-    color = "#2ecc71" if "✅" in status else "#e74c3c" if "❌" in status else "#f39c12"
-    branch_pill = f"<span class='gh-branch-pill'>🌿 {branch}</span>" if branch else ""
-    pr_link = f" <a href='{pr_url}' target='_blank' class='gh-pr-link'>View PR →</a>" if pr_url else ""
-    return (
-        f"<div class='gh-status-bar' style='border-left:3px solid {color}'>"
-        f"{status}{branch_pill}{pr_link}</div>"
-    )
 
-
-
+def refresh_template_choices(category):
     return gr.update(choices=get_template_choices(category), value=None)
 
 
@@ -335,61 +649,88 @@ def create_ui():
             with gr.Column(elem_id='chat-col'):
                 shared.gradio['html_display'] = gr.HTML(value=chat_html_wrapper({'internal': [], 'visible': [], 'metadata': {}}, '', '', 'chat', 'cai-chat', '')['html'], visible=True)
 
-                # ── GitHub Agent Panel (main window, toggleable) ──────────────
+                # ── GitHub Agent full panel ───────────────────────────────────
                 with gr.Row(visible=False, elem_id='gh-main-panel-row') as shared.gradio['gh_panel_row']:
                     with gr.Column(elem_id='gh-main-panel'):
-                        gr.HTML("""
-                        <style>
-                        #gh-main-panel-row{border-top:1px solid #2a2a4a;padding-top:10px}
-                        #gh-main-panel{background:#12121e;border:1px solid #2a2a4a;
+                        gr.HTML("""<style>
+                        #gh-main-panel-row{border-top:1px solid #2a2a4a;padding-top:8px}
+                        #gh-main-panel{background:#0d0d1a;border:1px solid #2a2a4a;
                             border-radius:12px;padding:14px 16px}
-                        .gh-panel-title{font-size:1em;font-weight:700;color:#8ec8ff;
-                            margin-bottom:12px;display:flex;align-items:center;gap:8px}
-                        .gh-col-label{font-size:.75em;font-weight:700;color:#8ec8ff;
-                            text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+                        .gh-panel-header{display:flex;align-items:center;justify-content:space-between;
+                            margin-bottom:10px}
+                        .gh-panel-title{font-size:1em;font-weight:700;color:#8ec8ff}
+                        .gh-section-title{font-size:.75em;font-weight:700;color:#8ec8ff;
+                            text-transform:uppercase;letter-spacing:.07em;margin:10px 0 4px}
                         .gh-status-bar{padding:6px 10px;border-radius:6px;font-size:.85em;
                             background:#1a1a2e;border-left:3px solid #555;
-                            margin-top:8px;line-height:1.5;word-break:break-word}
+                            margin-top:6px;line-height:1.5;word-break:break-word}
                         .gh-idle{color:#888}
                         .gh-branch-pill{background:#1e3a5f;color:#8ec8ff;border-radius:12px;
                             padding:2px 8px;font-size:.82em;margin-left:8px;font-family:monospace}
                         .gh-pr-link{color:#8ec8ff;text-decoration:underline;margin-left:6px}
+                        .gh-divider{border:none;border-top:1px solid #2a2a3e;margin:8px 0}
+                        #gh-chat-log{scrollbar-width:thin;scrollbar-color:#2a2a4a #0d0d1a}
                         </style>
-                        <div class='gh-panel-title'>🔧 GitHub Agent</div>
-                        """)
+                        <div class='gh-panel-header'>
+                          <span class='gh-panel-title'>🔧 GitHub Agent</span>
+                        </div>""")
+
+                        # Session state (JSON blob)
+                        shared.gradio['gh_session'] = gr.State("{}")
+
                         with gr.Row():
-                            with gr.Column(scale=3, min_width=160):
-                                gr.HTML("<div class='gh-col-label'>Task</div>")
+                            # Left col: chat log + input
+                            with gr.Column(scale=3, min_width=280):
+                                gr.HTML("<div class='gh-section-title'>💬 Agent Chat</div>")
+                                shared.gradio['gh_chat_html'] = gr.HTML(
+                                    value=render_agent_chat_html({"log": [], "branches": []}),
+                                    elem_id='gh-chat-html',
+                                )
+                                with gr.Row():
+                                    shared.gradio['gh_msg_input'] = gr.Textbox(
+                                        label='', placeholder='Type a message or task…',
+                                        show_label=False, scale=5,
+                                        elem_id='gh-msg-input',
+                                    )
+                                    shared.gradio['gh_msg_send_btn'] = gr.Button('Send', scale=1, size='sm', variant='primary')
+                                gr.HTML("<div class='gh-section-title'>📝 Task for agents</div>")
                                 shared.gradio['gh_task_panel'] = gr.Textbox(
-                                    label='',
-                                    lines=3,
-                                    placeholder='Describe the change you want the AI to make...',
-                                    elem_id='gh-task-panel-input',
-                                    show_label=False,
+                                    label='', lines=3, show_label=False,
+                                    placeholder='Describe the code change — each selected agent will get their own branch with this task…',
+                                    elem_id='gh-task-panel',
                                 )
-                            with gr.Column(scale=2, min_width=130):
-                                gr.HTML("<div class='gh-col-label'>PR Title</div>")
                                 shared.gradio['gh_pr_title_panel'] = gr.Textbox(
-                                    label='',
-                                    value='AI generated change',
-                                    elem_id='gh-pr-title-panel',
-                                    show_label=False,
+                                    label='PR title', value='AI: multi-agent change',
                                 )
-                                gr.HTML("<div class='gh-col-label' style='margin-top:8px'>Branch</div>")
-                                shared.gradio['gh_branch_panel'] = gr.Textbox(
-                                    label='',
-                                    interactive=False,
-                                    placeholder='(none yet)',
-                                    show_label=False,
+
+                            # Right col: model + roles + branches
+                            with gr.Column(scale=2, min_width=220):
+                                gr.HTML("<div class='gh-section-title'>🤖 Models & Agents</div>")
+                                shared.gradio['gh_model_override'] = gr.Textbox(
+                                    label='Model name (leave blank = current)',
+                                    placeholder='e.g. Qwen2.5-Coder-14B',
                                 )
+                                shared.gradio['gh_agent_roles'] = gr.CheckboxGroup(
+                                    label='Agent roles (one branch each)',
+                                    choices=['Planner', 'Coder', 'Reviewer', 'Tester', 'Security', 'Docs'],
+                                    value=['Coder'],
+                                )
+                                gr.HTML("<hr class='gh-divider'><div class='gh-section-title'>🌿 Active Branches</div>")
+                                shared.gradio['gh_branches_html'] = gr.HTML(
+                                    value=render_branches_html({"branches": []}),
+                                    elem_id='gh-branches-html',
+                                )
+
+                        # Action buttons row
                         with gr.Row():
-                            shared.gradio['gh_panel_branch_btn'] = gr.Button('🌿 Create Branch', size='sm')
-                            shared.gradio['gh_panel_pr_btn'] = gr.Button('🚀 Push + PR', size='sm', variant='primary')
-                            shared.gradio['gh_panel_send_btn'] = gr.Button('💬 Send Status to Chat', size='sm', variant='secondary')
+                            shared.gradio['gh_launch_btn'] = gr.Button('🚀 Launch Agents', variant='primary', size='sm')
+                            shared.gradio['gh_single_branch_btn'] = gr.Button('🌿 Single Branch', size='sm')
+                            shared.gradio['gh_merge_pr_btn'] = gr.Button('🔀 Merge All → PR', size='sm', variant='secondary')
+                            shared.gradio['gh_panel_send_btn'] = gr.Button('💬 Send to Chat', size='sm')
                             shared.gradio['gh_panel_close_btn'] = gr.Button('✕ Close', size='sm')
+
                         shared.gradio['gh_panel_status'] = gr.HTML(
-                            value="<div class='gh-status-bar gh-idle'>Connect in the sidebar first → 🔧 GitHub Agent</div>",
-                            elem_id='gh-panel-status-html',
+                            value="<div class='gh-status-bar gh-idle'>Connect in the sidebar (🔧 GitHub Agent) then use this panel.</div>",
                         )
 
                 with gr.Row(elem_id="chat-input-row"):
@@ -491,8 +832,7 @@ def create_ui():
                     shared.gradio['chat-instruct_command'] = gr.Textbox(value=shared.settings['chat-instruct_command'], lines=12, label='Command for chat-instruct mode', info='<|character|> and <|prompt|> get replaced with the bot name and the regular chat prompt respectively.', visible=shared.settings['mode'] == 'chat-instruct', elem_classes=['add_scrollbar'])
 
                 with gr.Accordion('🔧 GitHub Agent', open=False, elem_id='gh-sidebar-accordion'):
-                    gr.HTML("""
-                    <style>
+                    gr.HTML("""<style>
                     .gh-step-label{font-size:.75em;font-weight:700;letter-spacing:.08em;
                         color:#8ec8ff;text-transform:uppercase;margin-bottom:4px;margin-top:8px}
                     .gh-status-bar{padding:8px 12px;border-radius:8px;font-size:.88em;
@@ -502,66 +842,35 @@ def create_ui():
                         padding:2px 8px;font-size:.82em;margin-left:8px;font-family:monospace}
                     .gh-pr-link{color:#8ec8ff;text-decoration:underline;margin-left:6px}
                     .gh-divider{border:none;border-top:1px solid #2a2a3e;margin:10px 0}
-                    #gh-main-panel{background:#12121e;border:1px solid #2a2a4a;
-                        border-radius:12px;padding:16px;margin:8px 0}
-                    #gh-main-panel .gh-step-label{display:block}
-                    </style>
-                    """)
+                    </style>""")
                     gh_defaults = _load_github_config()
-
-                    gr.HTML("<div class='gh-step-label'>① Connection</div>")
+                    gr.HTML("<div class='gh-step-label'>① Connect your repo</div>")
                     shared.gradio['gh_repo_path'] = gr.Textbox(
                         label='Repository path',
                         value=gh_defaults.get('repo_path', '/content/text-generation-webui'),
                         placeholder='/content/text-generation-webui',
-                        elem_id='gh-repo-path',
                     )
                     with gr.Row():
                         shared.gradio['gh_base_branch'] = gr.Textbox(
-                            label='Base branch',
-                            value=gh_defaults.get('base_branch', 'main'),
-                            scale=1,
+                            label='Base branch', value=gh_defaults.get('base_branch', 'main'), scale=1,
                         )
                         shared.gradio['gh_token'] = gr.Textbox(
-                            label='GitHub token',
-                            type='password',
-                            value=gh_defaults.get('token', ''),
-                            placeholder='ghp_...',
-                            scale=2,
+                            label='GitHub token', type='password',
+                            value=gh_defaults.get('token', ''), placeholder='ghp_...', scale=2,
                         )
                     shared.gradio['gh_connect_btn'] = gr.Button('🔌 Connect Repo', variant='primary', size='sm')
-
-                    gr.HTML("<hr class='gh-divider'><div class='gh-step-label'>② Task</div>")
-                    shared.gradio['gh_task'] = gr.Textbox(
-                        label='Describe the change for the AI',
-                        lines=4,
-                        placeholder='Example: Add a welcome message to the Student Utils tab...',
-                        elem_id='gh-task-input',
-                    )
-                    with gr.Row():
-                        shared.gradio['gh_branch_btn'] = gr.Button('🌿 Create Branch', size='sm')
-                        shared.gradio['gh_send_to_chat_btn'] = gr.Button('💬 Send to Chat', size='sm', variant='secondary')
-
-                    gr.HTML("<hr class='gh-divider'><div class='gh-step-label'>③ Pull Request</div>")
-                    shared.gradio['gh_pr_title'] = gr.Textbox(
-                        label='PR title',
-                        value='AI generated change',
-                        elem_id='gh-pr-title',
-                    )
-                    shared.gradio['gh_pr_btn'] = gr.Button('🚀 Push + Open PR', variant='primary', size='sm')
-
                     gr.HTML("<hr class='gh-divider'>")
                     shared.gradio['gh_status_html'] = gr.HTML(
-                        value="<div class='gh-status-bar gh-idle'>🔧 Not connected yet — fill in ① and click Connect</div>",
-                        elem_id='gh-status-html',
+                        value="<div class='gh-status-bar gh-idle'>Not connected — fill in path + token above</div>",
                     )
-                    shared.gradio['gh_status'] = gr.Textbox(label='Status (raw)', interactive=False, visible=False)
-                    shared.gradio['gh_branch'] = gr.Textbox(label='Working branch', interactive=False, visible=False)
-                    shared.gradio['gh_task_file'] = gr.Textbox(label='Task file', interactive=False, visible=False)
-                    shared.gradio['gh_pr_url'] = gr.Textbox(label='PR URL', interactive=False, visible=False)
-                    with gr.Row():
-                        shared.gradio['gh_branch_display'] = gr.Textbox(label='🌿 Active branch', interactive=False, scale=2)
-                        shared.gradio['gh_pr_url_display'] = gr.Textbox(label='🔗 PR URL', interactive=False, scale=3)
+                    # Hidden state fields used by event handlers
+                    shared.gradio['gh_status'] = gr.Textbox(interactive=False, visible=False)
+                    shared.gradio['gh_branch'] = gr.Textbox(interactive=False, visible=False)
+                    shared.gradio['gh_task_file'] = gr.Textbox(interactive=False, visible=False)
+                    shared.gradio['gh_pr_url'] = gr.Textbox(interactive=False, visible=False)
+                    shared.gradio['gh_branch_display'] = gr.Textbox(interactive=False, visible=False)
+                    shared.gradio['gh_pr_url_display'] = gr.Textbox(interactive=False, visible=False)
+                    gr.HTML("<div style='font-size:.8em;color:#555;margin-top:6px'>After connecting, click <b>🔧 Git</b> button below the chat to open the full agent panel.</div>")
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
@@ -903,63 +1212,29 @@ def create_event_handlers():
 
     shared.gradio['chat_style'].change(chat.redraw_html, gradio(reload_arr), gradio('display'), show_progress=False)
 
-    # ── GitHub Agent: sidebar ────────────────────────────────────────────────
+    # ── GitHub Agent: sidebar Connect ────────────────────────────────────────
 
-    def _gh_connect_and_refresh(repo_path, base_branch, token):
-        status, repo_out = github_connect(repo_path, base_branch, token)
-        html = github_status_html(status, None, None)
-        return status, repo_out, html
+    def _gh_connect(repo_path, base_branch, token):
+        status, repo_out, session_json, chat_html = github_connect(repo_path, base_branch, token)
+        status_html = github_status_html(status, None, None)
+        return status, repo_out, session_json, status_html, chat_html
 
     shared.gradio['gh_connect_btn'].click(
-        _gh_connect_and_refresh,
+        _gh_connect,
         gradio('gh_repo_path', 'gh_base_branch', 'gh_token'),
-        gradio('gh_status', 'gh_repo_path', 'gh_status_html'),
+        gradio('gh_status', 'gh_repo_path', 'gh_session', 'gh_status_html', 'gh_chat_html'),
         show_progress=False,
     )
 
-    def _gh_branch_and_refresh(task, mode, effort, repo_path, base_branch):
-        status, branch, task_file = github_create_branch(task, mode, effort, repo_path, base_branch)
-        html = github_status_html(status, branch, None)
-        return status, branch, task_file, html, branch
+    # ── GitHub Agent: toggle panel ────────────────────────────────────────────
 
-    shared.gradio['gh_branch_btn'].click(
-        _gh_branch_and_refresh,
-        gradio('gh_task', 'mode', 'reasoning_effort', 'gh_repo_path', 'gh_base_branch'),
-        gradio('gh_status', 'gh_branch', 'gh_task_file', 'gh_status_html', 'gh_branch_display'),
-        show_progress=False,
-    )
-
-    # sidebar "Send to Chat" — copies sidebar task into main chat textbox
-    shared.gradio['gh_send_to_chat_btn'].click(
-        github_send_to_chat,
-        gradio('gh_status', 'gh_branch', 'gh_task', 'gh_pr_url'),
-        gradio('textbox'),
-        show_progress=False,
-    )
-
-    def _gh_pr_and_refresh(repo_path, branch, title, task):
-        status, pr_url = github_open_pr(repo_path, branch, title, task)
-        html = github_status_html(status, branch, pr_url)
-        return status, pr_url, html, pr_url
-
-    shared.gradio['gh_pr_btn'].click(
-        _gh_pr_and_refresh,
-        gradio('gh_repo_path', 'gh_branch', 'gh_pr_title', 'gh_task'),
-        gradio('gh_status', 'gh_pr_url', 'gh_status_html', 'gh_pr_url_display'),
-        show_progress=False,
-    )
-
-    # ── GitHub Agent: main window panel ─────────────────────────────────────
-
-    # Toggle panel open/close
     shared.gradio['gh_toggle_btn'].click(
-        lambda visible: gr.update(visible=not visible),
+        lambda v: gr.update(visible=not v),
         gradio('gh_panel_row'),
         gradio('gh_panel_row'),
         show_progress=False,
     )
 
-    # Close button inside panel
     shared.gradio['gh_panel_close_btn'].click(
         lambda: gr.update(visible=False),
         None,
@@ -967,34 +1242,79 @@ def create_event_handlers():
         show_progress=False,
     )
 
-    # Panel "Create Branch" — syncs task from panel into sidebar task field too
-    def _gh_panel_branch(task_panel, mode, effort, repo_path, base_branch):
-        status, branch, task_file = github_create_branch(task_panel, mode, effort, repo_path, base_branch)
-        html = github_status_html(status, branch, None)
-        return status, branch, task_file, html, branch, branch, task_panel
+    # ── GitHub Agent: chat send ───────────────────────────────────────────────
 
-    shared.gradio['gh_panel_branch_btn'].click(
-        _gh_panel_branch,
-        gradio('gh_task_panel', 'mode', 'reasoning_effort', 'gh_repo_path', 'gh_base_branch'),
-        gradio('gh_status', 'gh_branch', 'gh_task_file',
-               'gh_panel_status', 'gh_branch_panel', 'gh_branch_display', 'gh_task'),
+    def _gh_send_msg(msg, session_json, repo_path):
+        new_session_json, chat_html = github_agent_send(msg, session_json, repo_path)
+        return "", new_session_json, chat_html
+
+    shared.gradio['gh_msg_send_btn'].click(
+        _gh_send_msg,
+        gradio('gh_msg_input', 'gh_session', 'gh_repo_path'),
+        gradio('gh_msg_input', 'gh_session', 'gh_chat_html'),
         show_progress=False,
     )
 
-    # Panel "Push + PR"
-    def _gh_panel_pr(repo_path, branch, title_panel, task_panel):
-        status, pr_url = github_open_pr(repo_path, branch, title_panel, task_panel)
-        html = github_status_html(status, branch, pr_url)
-        return status, pr_url, html, pr_url, pr_url
-
-    shared.gradio['gh_panel_pr_btn'].click(
-        _gh_panel_pr,
-        gradio('gh_repo_path', 'gh_branch', 'gh_pr_title_panel', 'gh_task_panel'),
-        gradio('gh_status', 'gh_pr_url', 'gh_panel_status', 'gh_pr_url_display', 'gh_pr_url'),
+    shared.gradio['gh_msg_input'].submit(
+        _gh_send_msg,
+        gradio('gh_msg_input', 'gh_session', 'gh_repo_path'),
+        gradio('gh_msg_input', 'gh_session', 'gh_chat_html'),
         show_progress=False,
     )
 
-    # Panel "Send Status to Chat" — formats current state and puts it in the chat box
+    # ── GitHub Agent: single branch ───────────────────────────────────────────
+
+    def _gh_single_branch(task, mode, effort, repo_path, base_branch, session_json):
+        status, branch, task_file, new_session_json, chat_html = github_create_branch(
+            task, mode, effort, repo_path, base_branch, session_json
+        )
+        status_html = github_status_html(status, branch, None)
+        branches_html = render_branches_html(json.loads(new_session_json or "{}"))
+        return status, branch, task_file, new_session_json, chat_html, branches_html, status_html
+
+    shared.gradio['gh_single_branch_btn'].click(
+        _gh_single_branch,
+        gradio('gh_task_panel', 'mode', 'reasoning_effort', 'gh_repo_path', 'gh_base_branch', 'gh_session'),
+        gradio('gh_status', 'gh_branch', 'gh_task_file', 'gh_session',
+               'gh_chat_html', 'gh_branches_html', 'gh_panel_status'),
+        show_progress=False,
+    )
+
+    # ── GitHub Agent: launch multi-agent ─────────────────────────────────────
+
+    def _gh_launch(task, roles, model, repo_path, base_branch, session_json):
+        status, new_session_json, chat_html, branches_html = github_launch_multi_agent(
+            task, roles, model, repo_path, base_branch, session_json
+        )
+        panel_status = github_status_html(status, None, None)
+        return status, new_session_json, chat_html, branches_html, panel_status
+
+    shared.gradio['gh_launch_btn'].click(
+        _gh_launch,
+        gradio('gh_task_panel', 'gh_agent_roles', 'gh_model_override',
+               'gh_repo_path', 'gh_base_branch', 'gh_session'),
+        gradio('gh_status', 'gh_session', 'gh_chat_html', 'gh_branches_html', 'gh_panel_status'),
+        show_progress=False,
+    )
+
+    # ── GitHub Agent: merge all → PR ─────────────────────────────────────────
+
+    def _gh_merge_all(repo_path, base_branch, pr_title, session_json):
+        status, pr_url, new_session_json, chat_html, branches_html = github_merge_all_pr(
+            repo_path, base_branch, pr_title, session_json
+        )
+        panel_status = github_status_html(status, None, pr_url)
+        return status, pr_url, new_session_json, chat_html, branches_html, panel_status
+
+    shared.gradio['gh_merge_pr_btn'].click(
+        _gh_merge_all,
+        gradio('gh_repo_path', 'gh_base_branch', 'gh_pr_title_panel', 'gh_session'),
+        gradio('gh_status', 'gh_pr_url', 'gh_session', 'gh_chat_html', 'gh_branches_html', 'gh_panel_status'),
+        show_progress=False,
+    )
+
+    # ── GitHub Agent: send status to main chat ────────────────────────────────
+
     shared.gradio['gh_panel_send_btn'].click(
         github_send_to_chat,
         gradio('gh_status', 'gh_branch', 'gh_task_panel', 'gh_pr_url'),
