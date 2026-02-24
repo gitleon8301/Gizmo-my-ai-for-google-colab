@@ -677,6 +677,8 @@ def create_ui():
 
                         # Session state (JSON blob)
                         shared.gradio['gh_session'] = gr.State("{}")
+                        # Visibility state for toggle button
+                        shared.gradio['gh_panel_visible'] = gr.State(False)
 
                         with gr.Row():
                             # Left col: chat log + input
@@ -1228,17 +1230,24 @@ def create_event_handlers():
 
     # ── GitHub Agent: toggle panel ────────────────────────────────────────────
 
+    def _gh_toggle_panel(is_visible):
+        new_visible = not is_visible
+        return gr.update(visible=new_visible), new_visible
+
     shared.gradio['gh_toggle_btn'].click(
-        lambda v: gr.update(visible=not v),
-        gradio('gh_panel_row'),
-        gradio('gh_panel_row'),
+        _gh_toggle_panel,
+        gradio('gh_panel_visible'),
+        gradio('gh_panel_row', 'gh_panel_visible'),
         show_progress=False,
     )
 
+    def _gh_close_panel():
+        return gr.update(visible=False), False
+
     shared.gradio['gh_panel_close_btn'].click(
-        lambda: gr.update(visible=False),
+        _gh_close_panel,
         None,
-        gradio('gh_panel_row'),
+        gradio('gh_panel_row', 'gh_panel_visible'),
         show_progress=False,
     )
 
