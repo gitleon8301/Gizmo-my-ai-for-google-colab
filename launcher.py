@@ -641,6 +641,36 @@ def download_model_if_missing():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  AUTO-PATCH  — removes stray ' main' tokens left by bad git merges
+# ══════════════════════════════════════════════════════════════════════════════
+
+def patch_repo_files():
+    """Remove stray ' main' lines injected by a bad git merge into 3 known files."""
+    import re as _re
+    targets = [
+        WORK_DIR / "modules" / "ui_chat.py",
+        WORK_DIR / "extensions" / "student_utils" / "script.py",
+        WORK_DIR / "launcher.py",
+    ]
+    fixed_any = False
+    for path in targets:
+        if not path.exists():
+            continue
+        try:
+            original = path.read_text(encoding="utf-8")
+            patched  = _re.sub(r"^ main\n", "", original, flags=_re.MULTILINE)
+            if patched != original:
+                path.write_text(patched, encoding="utf-8")
+                removed = original.count(" main\n") - patched.count(" main\n")
+                print(f"[patch] fixed {removed} stray line(s) in {path.name}")
+                fixed_any = True
+        except Exception as e:
+            print(f"[patch] warning: could not patch {path.name}: {e}")
+    if not fixed_any:
+        print("[patch] no stray lines found — repo is clean")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  REPO DOWNLOAD  (uses authenticated git clone → private repo support)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1017,6 +1047,10 @@ if __name__ == "__main__":
     # ── Repo ───────────────────────────────────────────────────────────────
     if not download_repo_if_missing() and not WORK_DIR.exists():
         raise SystemExit("Repository unavailable — check your token and repo name.")
+
+    # ── Auto-patch known bad-merge artifacts ───────────────────────────────
+    print("\n🔧 Patching repo files...")
+    patch_repo_files()
 
     # ── Symlinks ───────────────────────────────────────────────────────────
     ensure_symlinks_and_files()
