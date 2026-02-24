@@ -1,0 +1,13 @@
+{
+  "workflows_tab": "Workflows",
+  "forms_tab": "Forms",
+  "analytics_tab": "Analytics",
+  "integrations_panel": "Integrations",
+  "marketplace": "Marketplace",
+  "collaboration": "Collaboration",
+  "sso_oauth": "SSO / OAuth",
+  "developer_tests": "Developer Tests",
+  "save_workflow": "Save workflow",
+  "run_workflow": "Run workflow",
+  "export_json": "Export JSON"
+}
