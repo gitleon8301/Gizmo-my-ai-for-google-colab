@@ -714,6 +714,185 @@ print(result)  # ✅ Text added to slide 1.
 6. Select agent roles, describe your task, and click **🚀 Launch Agents**.
 7. When done, click **🔀 Merge All → PR** to push all agent branches and open a PR.
 
+
+---
+
+<a id="feature-guide"></a>
+## 🎯 Feature Guide
+
+<a id="youtube-video-summarizer"></a>
+### YouTube Video Summarizer
+
+**Tab:** ▶️ YouTube Summarizer
+
+Paste any YouTube URL and let the AI fetch the video transcript and summarize it — or answer specific questions about the content.
+
+#### Setup
+
+No API key required. Install the optional dependency:
+
+```bash
+pip install youtube-transcript-api pytube
+```
+
+#### Usage
+
+1. Open the **▶️ YouTube Summarizer** tab.
+2. Paste a YouTube URL (e.g. `https://www.youtube.com/watch?v=dQw4w9WgXcQ`).
+3. Choose a **Summary Style** and **Transcript Language**.
+4. Click **▶ Fetch & Summarize** — the AI will generate a summary.
+5. To ask a specific question, type it in the *Ask a question* box and click **Ask**.
+6. Expand the **📝 Raw Transcript** accordion to view the full timestamped transcript.
+
+#### Tips
+
+- For long videos, the summarizer automatically uses a map-reduce approach to stay within the model's context window.
+- Private or age-restricted videos may not have accessible transcripts.
+
+---
+
+<a id="github-repo-chat"></a>
+### GitHub Repo Chat
+
+**Tab:** 🐙 GitHub Repo Chat
+
+Paste a GitHub repository URL and chat with the codebase. Ask the AI to explain functions, find bugs, or suggest improvements.
+
+#### Setup
+
+No extra packages required (uses `git` via subprocess). For private repos, generate a [GitHub Personal Access Token](https://github.com/settings/tokens).
+
+Optional dependency:
+
+```bash
+pip install gitpython
+```
+
+#### Usage
+
+1. Open the **🐙 GitHub Repo Chat** tab.
+2. Paste a public GitHub repository URL (e.g. `https://github.com/user/repo`).
+3. Optionally enter a Personal Access Token for private repos.
+4. Click **Load Repo** — the repo is shallow-cloned and indexed.
+5. Use the **Browse Files** dropdown to select a file, then click **View File** to inspect it.
+6. Type questions in the chat box (e.g. "Explain the `main()` function") and click **Ask**.
+7. Use the quick-action buttons (**Explain / Find Bugs / Suggest Improvements / Generate Tests**) for common tasks.
+
+#### Tips
+
+- Repositories larger than 100 MB or with more than 10,000 files will display a warning; very large files may be skipped.
+- The AI response is context-aware: the full repo map and README are automatically included.
+
+---
+
+<a id="notion-integration"></a>
+### Notion Integration
+
+**Tab:** 📓 Notion
+
+Read and write Notion pages directly from Gizmo. Sync AI-generated notes to your Notion workspace.
+
+#### Setup
+
+1. Install the optional dependency:
+
+   ```bash
+   pip install notion-client
+   ```
+
+2. Create a Notion integration at [https://www.notion.so/my-integrations](https://www.notion.so/my-integrations).
+3. Copy the **Internal Integration Token**.
+4. Share the pages you want to access with the integration (open the page → Share → search your integration name).
+
+#### Usage
+
+**Connecting:**
+1. Open the **📓 Notion** tab.
+2. Paste your Internal Integration Token in the **API Key** field.
+3. Click **Connect** — the status indicator turns green on success.
+
+**Reading:**
+1. Click **Fetch Pages** to list all pages your integration can access.
+2. Select a page from the dropdown and click **Import Page** to load its content as Markdown.
+3. Use **Ask AI About Page** or **Summarize Page** for AI-powered analysis.
+
+**Writing:**
+1. Enter a **Page Title** and optionally select a parent page.
+2. Click **Save Chat to Notion** to export the current conversation as a new Notion page.
+
+#### Tips
+
+- The API key is saved locally in `user_data/notion_config.json` (never committed to git).
+- Rate limits: Notion allows up to 3 requests per second.
+
+---
+
+<a id="google-calendar-integration"></a>
+### Google Calendar Integration
+
+**Tab:** 📅 Google Calendar
+
+Check your schedule, add study sessions, set reminders, and use the AI to suggest optimal time slots.
+
+#### Setup
+
+1. Install optional dependencies:
+
+   ```bash
+   pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+   ```
+
+2. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project.
+3. Enable the **Google Calendar API**.
+4. Create **OAuth 2.0 Client ID** credentials → Download `credentials.json`.
+5. Run the authorization flow from the **Setup & Authorization** accordion in the tab.
+
+#### Usage
+
+**Authorizing:**
+1. Open the **📅 Google Calendar** tab.
+2. Enter the path to your `credentials.json` file.
+3. Click **Authorize** — a browser window or console prompt will guide you through OAuth2.
+4. On subsequent runs, click **Reconnect** to reuse the saved token.
+
+**Viewing your schedule:**
+1. Select a date range (Today / This Week / This Month / Custom).
+2. Click **Fetch Events** to display upcoming events in the table.
+
+**Adding events:**
+- **Study Session** — enter subject, date, start/end time, and click **Add Study Session**.
+- **Reminder** — enter title, date, time, and click **Add Reminder**.
+- **Assignment Deadline** — enter name, due date, course, priority, and click **Add Assignment**.
+
+**AI Schedule Helper:**
+1. Describe what you need in plain English (e.g. "Schedule 2 hours of math study this week").
+2. Click **Suggest Times** — the AI analyzes your current calendar and proposes free slots.
+
+#### Tips
+
+- In Google Colab, the OAuth2 flow uses the console (copy-paste) mode automatically.
+- Token is stored in `user_data/google_token.json` (never committed to git).
+
+---
+
+<a id="optional-dependencies"></a>
+### Optional Dependencies
+
+Install all integration dependencies at once:
+
+```bash
+pip install -r requirements_integrations.txt
+```
+
+| Package | Feature |
+|---|---|
+| `youtube-transcript-api` | YouTube Summarizer |
+| `pytube` | YouTube video metadata |
+| `notion-client` | Notion Integration |
+| `google-api-python-client` | Google Calendar |
+| `google-auth-httplib2` | Google Calendar auth |
+| `google-auth-oauthlib` | Google Calendar OAuth2 flow |
+| `gitpython` | GitHub Repo Chat (optional) |
 ---
 
 ## 🎯 Feature Guide

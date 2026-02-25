@@ -65,6 +65,10 @@ from modules import (
     ui_developer,
     ui_launch,
     ui_google_slides,
+    ui_youtube,
+    ui_github_chat,
+    ui_notion,
+    ui_google_calendar,
     ui_google_docs,
     ui_google_sheets,
     ui_pdf_reader,
@@ -205,6 +209,10 @@ def create_interface():
         ui_developer.create_ui()  # Developer tab
         ui_lessons.create_ui()  # Lessons tab
         ui_google_slides.create_ui()  # Google Slides tab
+        ui_youtube.create_ui()         # YouTube Summarizer tab
+        ui_github_chat.create_ui()     # GitHub Repo Chat tab
+        ui_notion.create_ui()          # Notion Integration tab
+        ui_google_calendar.create_ui() # Google Calendar tab
         ui_google_docs.create_ui()  # Google Docs tab
         ui_google_sheets.create_ui()  # Google Sheets tab
         ui_pdf_reader.create_ui()  # PDF Reader tab
@@ -227,6 +235,10 @@ def create_interface():
         ui_developer.create_event_handlers()
         ui_lessons.create_event_handlers()
         ui_google_slides.create_event_handlers()
+        ui_youtube.create_event_handlers()
+        ui_github_chat.create_event_handlers()
+        ui_notion.create_event_handlers()
+        ui_google_calendar.create_event_handlers()
         ui_google_docs.create_event_handlers()
         ui_google_sheets.create_event_handlers()
         ui_pdf_reader.create_event_handlers()
