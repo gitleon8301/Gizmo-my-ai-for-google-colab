@@ -65,6 +65,12 @@ from modules import (
     ui_developer,
     ui_launch,
     ui_google_slides,
+    ui_google_docs,
+    ui_google_sheets,
+    ui_pdf_reader,
+    ui_flashcards,
+    ui_quiz,
+    ui_study_planner,
     ui_voice_chat,
     ui_image_understanding,
     ui_web_search_tab,
@@ -199,6 +205,12 @@ def create_interface():
         ui_developer.create_ui()  # Developer tab
         ui_lessons.create_ui()  # Lessons tab
         ui_google_slides.create_ui()  # Google Slides tab
+        ui_google_docs.create_ui()  # Google Docs tab
+        ui_google_sheets.create_ui()  # Google Sheets tab
+        ui_pdf_reader.create_ui()  # PDF Reader tab
+        ui_flashcards.create_ui()  # Flashcards tab
+        ui_quiz.create_ui()  # Quiz Mode tab
+        ui_study_planner.create_ui()  # Study Planner tab
         ui_voice_chat.create_ui()  # Voice Chat tab
         ui_image_understanding.create_ui()  # Image Understanding tab
         ui_web_search_tab.create_ui()  # Web Search tab
@@ -215,6 +227,12 @@ def create_interface():
         ui_developer.create_event_handlers()
         ui_lessons.create_event_handlers()
         ui_google_slides.create_event_handlers()
+        ui_google_docs.create_event_handlers()
+        ui_google_sheets.create_event_handlers()
+        ui_pdf_reader.create_event_handlers()
+        ui_flashcards.create_event_handlers()
+        ui_quiz.create_event_handlers()
+        ui_study_planner.create_event_handlers()
         ui_voice_chat.create_event_handlers()
         ui_image_understanding.create_event_handlers()
         ui_web_search_tab.create_event_handlers()
