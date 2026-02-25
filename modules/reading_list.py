@@ -18,24 +18,7 @@ def _ensure_dirs() -> None:
     os.makedirs(_LISTS_DIR, exist_ok=True)
 
 
-def _call_ai(prompt: str, max_tokens: int = 2048):
-    """Call the AI model with the given prompt. Returns (output, error)."""
-    try:
-        from modules import shared
-        if shared.model is None:
-            return None, "❌ No AI model loaded. Please load a model first."
-        state = shared.settings.copy()
-        state['max_new_tokens'] = max_tokens
-        from modules.text_generation import generate_reply
-        output = ""
-        for chunk in generate_reply(prompt, state, stopping_strings=[], is_chat=False):
-            if isinstance(chunk, str):
-                output = chunk
-            elif isinstance(chunk, (list, tuple)) and len(chunk) > 0:
-                output = chunk[0] if isinstance(chunk[0], str) else str(chunk[0])
-        return output.strip(), None
-    except Exception as exc:
-        return None, f"❌ AI error: {exc}"
+from modules.ai_helper import call_ai as _call_ai
 
 
 def generate_reading_list(topic: str, count: int = 10) -> Tuple[str, List[Dict]]:
