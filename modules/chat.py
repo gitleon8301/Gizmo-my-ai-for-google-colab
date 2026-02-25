@@ -144,7 +144,20 @@ def generate_chat_prompt(user_input, state, **kwargs):
         if not isinstance(user_msg, str):
             user_msg = str(user_msg)
         user_msg = user_msg.strip()
-        assistant_msg = entry[1].strip()
+        # defensive extraction from history entry
+if not entry:
+    continue
+# user message
+user_msg = entry[0] if len(entry) > 0 and entry[0] is not None else ""
+if not isinstance(user_msg, str):
+    user_msg = str(user_msg)
+user_msg = user_msg.strip()
+
+# assistant message (if present)
+assistant_msg = entry[1] if len(entry) > 1 and entry[1] is not None else ""
+if not isinstance(assistant_msg, str):
+    assistant_msg = str(assistant_msg)
+assistant_msg = assistant_msg.strip()
         tool_msg = entry[2].strip() if len(entry) > 2 else ''
 
         row_idx = len(history) - i - 1
