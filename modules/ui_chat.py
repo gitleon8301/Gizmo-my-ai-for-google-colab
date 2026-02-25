@@ -652,28 +652,40 @@ def create_ui():
                 # ── GitHub Agent full panel ───────────────────────────────────
                 with gr.Row(visible=False, elem_id='gh-main-panel-row') as shared.gradio['gh_panel_row']:
                     with gr.Column(elem_id='gh-main-panel'):
-                        gr.HTML("""<style>
-                        #gh-main-panel-row{border-top:1px solid #2a2a4a;padding-top:8px}
-                        #gh-main-panel{background:#0d0d1a;border:1px solid #2a2a4a;
-                            border-radius:12px;padding:14px 16px}
-                        .gh-panel-header{display:flex;align-items:center;justify-content:space-between;
-                            margin-bottom:10px}
-                        .gh-panel-title{font-size:1em;font-weight:700;color:#8ec8ff}
-                        .gh-section-title{font-size:.75em;font-weight:700;color:#8ec8ff;
-                            text-transform:uppercase;letter-spacing:.07em;margin:10px 0 4px}
-                        .gh-status-bar{padding:6px 10px;border-radius:6px;font-size:.85em;
-                            background:#1a1a2e;border-left:3px solid #555;
-                            margin-top:6px;line-height:1.5;word-break:break-word}
-                        .gh-idle{color:#888}
-                        .gh-branch-pill{background:#1e3a5f;color:#8ec8ff;border-radius:12px;
-                            padding:2px 8px;font-size:.82em;margin-left:8px;font-family:monospace}
-                        .gh-pr-link{color:#8ec8ff;text-decoration:underline;margin-left:6px}
-                        .gh-divider{border:none;border-top:1px solid #2a2a3e;margin:8px 0}
-                        #gh-chat-log{scrollbar-width:thin;scrollbar-color:#2a2a4a #0d0d1a}
-                        </style>
-                        <div class='gh-panel-header'>
-                          <span class='gh-panel-title'>🔧 GitHub Agent</span>
-                        </div>""")
+                        gr.HTML("""/* add to a style block in the UI file */
+.ui-chat-textarea textarea, .ui-chat-textarea input, textarea#chat-input {
+    border-radius: 12px !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.45) !important;
+    min-height: 180px !important;
+    max-height: 420px !important;
+    padding: 14px !important;
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+    background: linear-gradient(180deg,#1b1f22 0%,#151719 100%) !important;
+    color: #e6eef6 !important;
+    border: 1px solid rgba(255,255,255,0.035) !important;
+    resize: vertical !important;
+}
+
+.ui-chat-textarea textarea:focus, textarea#chat-input:focus {
+    outline: none !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.6), 0 0 0 4px rgba(80,140,255,0.04) !important;
+    border-color: rgba(80,140,255,0.2) !important;
+}
+
+/* styling for relocated Git button */
+.moved-git-btn {
+    margin-right: 8px;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-weight: 600;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+    background: linear-gradient(180deg,#2a2c31,#171819);
+    color: #e6eef6;
+    border: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+}""")
 
                         # Session state (JSON blob)
                         shared.gradio['gh_session'] = gr.State("{}")
@@ -735,16 +747,28 @@ def create_ui():
                             value="<div class='gh-status-bar gh-idle'>Connect in the sidebar (🔧 GitHub Agent) then use this panel.</div>",
                         )
 
-                with gr.Row(elem_id="chat-input-row"):
-                    with gr.Column(scale=1, elem_id='gr-hover-container'):
-                        gr.HTML(value='<div class="hover-element" onclick="void(0)"><span style="width: 100px; display: block" id="hover-element-button">&#9776;</span><div class="hover-menu" id="hover-menu"></div>', elem_id='gr-hover')
-
                     with gr.Column(scale=10, elem_id='chat-input-container'):
-                        shared.gradio['textbox'] = gr.MultimodalTextbox(label='', placeholder='Send a message', file_types=['text', '.pdf', 'image'], file_count="multiple", elem_id='chat-input', elem_classes=['add_scrollbar'])
-                        shared.gradio['typing-dots'] = gr.HTML(value='<div class="typing"><span></span><span class="dot1"></span><span class="dot2"></span></div>', label='typing', elem_id='typing-container')
+        # prettier, larger chat input
 
-                    with gr.Column(scale=1, elem_id='connector-plus-container'):
-                        shared.gradio['connector-plus'] = gr.HTML(value='''<div class="connector-menu-wrapper">
+        shared.gradio['textbox'] = gr.Textbox(
+            label='',
+            placeholder='Send a message...',
+            lines=8,                      # larger input
+            interactive=True,
+            elem_id='chat-input',
+            elem_classes=['add_scrollbar', 'ui-chat-textarea'],
+        )
+
+        # typing indicator (keep original content)
+        shared.gradio['typing-dots'] = gr.HTML(
+            value='<div id="typing-dots"><span class="dot dot1"></span><span class="dot dot2"></span><span class="dot dot3"></span></div>',
+            label='typing',
+            elem_id='typing-container'
+        )
+
+        # relocate the Git toggle button here (so it appears above/near the input)
+        # This replaces the previous definition that was inside the generate-stop-container.
+        shared.gradio['gh_toggle_btn'] = gr.Button('🔧 Git', elem_id='gh-toggle-btn', size='sm', elem_classes=['moved-git-btn'])
   <details>
     <summary title="Connectors">+</summary>
     <div class="connector-menu-panel">
@@ -768,7 +792,7 @@ def create_ui():
                         with gr.Row():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
-                        shared.gradio['gh_toggle_btn'] = gr.Button('🔧 Git', elem_id='gh-toggle-btn', size='sm')
+                        
 
 
         # Hover menu buttons
