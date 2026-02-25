@@ -2252,3 +2252,225 @@ Convert any text — notes, PDFs, flashcards — to audio using gTTS or pyttsx3.
 - **Audio output:** The Gradio audio player appears with the generated MP3.
 - **TTS engines:** Uses gTTS (online, install with `pip install gTTS`) or pyttsx3 (offline, install with `pip install pyttsx3`). The best available engine is selected automatically.
 - **Settings:** Configure engine, language, speed, and auto-play preference. Click **💾 Save Settings** to persist to `user_data/tts_settings.json`.
+
+---
+
+## 🔗 Connector Setup Guides
+
+### Google Drive Setup
+
+**Anchor:** `#google-drive-setup`
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create or select a project.
+2. Enable the **Google Drive API** (APIs & Services → Library → search "Google Drive API").
+3. Go to **APIs & Services → Credentials** → Create credentials → **OAuth 2.0 Client ID** → Desktop app.
+4. Download the resulting `credentials.json` file to your computer.
+5. Open Gizmo and navigate to the **📁 Google Drive** tab.
+6. Enter the path to your `credentials.json` file and click **🔗 Authorize**.
+7. A browser window will open; sign in with your Google account and grant the requested permissions.
+8. After authorization, a `google_drive_token.json` file is saved to `user_data/` for future reconnections.
+
+**Troubleshooting:**
+- *"Access blocked: app not verified"* — Click "Advanced" → "Go to \[app name\] (unsafe)" during the OAuth screen (this is safe for your own project).
+- *Token expired* — Click **Reconnect (use saved token)** to refresh, or re-authorize with a new `credentials.json`.
+- Ensure your Google account has permissions to the files/folders you want to access.
+
+---
+
+### Gmail Setup
+
+**Anchor:** `#gmail-setup`
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and enable the **Gmail API**.
+2. Create OAuth 2.0 credentials (same as Google Drive above) — select **Desktop app**.
+3. Download `credentials.json`.
+4. In Gizmo, open the **📧 Gmail** tab.
+5. Enter the path to `credentials.json` and click **🔗 Authorize**.
+6. Sign in and grant Gmail read/send permissions.
+
+**Scopes used:** `gmail.readonly`, `gmail.send`, `gmail.modify`
+
+**Classroom Assignment Detection:**
+- Gizmo automatically scans your inbox for emails from `classroom.google.com`.
+- Detected assignments are shown in the alert banner and can be added to your Assignment Tracker and Google Calendar with one click.
+
+---
+
+### Google Classroom Setup
+
+**Anchor:** `#google-classroom-setup`
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and enable the **Google Classroom API**.
+2. Create OAuth 2.0 credentials → Desktop app → Download `credentials.json`.
+3. In Gizmo, open the **🎓 Google Classroom** tab.
+4. Enter the path to `credentials.json` and click **🔗 Authorize**.
+5. After authorization, click **🔄 Fetch Courses** to load your enrolled courses.
+6. Select a course from the dropdown to view Assignments, Announcements, Materials, and Grades.
+
+**Features:**
+- View assignments with due dates and submission status.
+- Sync assignments to Gizmo's Assignment Tracker and Google Calendar.
+- Generate AI flashcards, quizzes, or notes from any assignment or course material.
+- View GPA calculations across all courses.
+
+---
+
+### Spotify Setup
+
+**Anchor:** `#spotify-setup`
+
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and log in.
+2. Click **Create App** — give it a name and description.
+3. Add `http://localhost:8888/callback` as a Redirect URI.
+4. Copy your **Client ID** and **Client Secret**.
+5. In Gizmo, open the **🎵 Music** tab and select **Spotify** as the platform.
+6. Enter your Client ID and Client Secret and click **🔗 Connect**.
+
+**Requirements:** Install `spotipy` — `pip install spotipy`
+
+**Features:** Playback control, song/playlist/artist search, AI study playlist generation, Pomodoro integration.
+
+---
+
+### YouTube Music Setup
+
+**Anchor:** `#youtube-music-setup`
+
+1. Install ytmusicapi: `pip install ytmusicapi`
+2. Run `ytmusicapi browser` in your terminal and follow the instructions to create `browser.json`.
+3. In Gizmo, open the **🎵 Music** tab and select **YouTube Music** as the platform.
+4. Enter the path to your `browser.json` in the API Key field and click **🔗 Connect**.
+
+**Alternative:** Use the YouTube Data API v3 (requires a Google API key from Cloud Console).
+
+---
+
+### Notion Setup
+
+**Anchor:** `#notion-setup`
+
+1. Go to [https://www.notion.so/my-integrations](https://www.notion.so/my-integrations).
+2. Click **+ New integration** — give it a name and select your workspace.
+3. Copy the **Internal Integration Token**.
+4. In Gizmo, open the **📓 Notion** tab and paste your token, then click **Connect**.
+5. Share pages with your integration: open a Notion page → Share → search for your integration name.
+
+---
+
+### GitHub Setup
+
+**Anchor:** `#github-setup`
+
+1. Go to [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens).
+2. Click **Generate new token (classic)** — select `repo` scope (and `read:org` if needed).
+3. Copy the token.
+4. In Gizmo, open the **🐙 GitHub** tab and paste your token, then click **Connect**.
+
+---
+
+## 📊 Feature Guides
+
+### Dashboard
+
+**Anchor:** `#dashboard`
+
+The **📊 Dashboard** is the first tab you see when opening Gizmo. It provides a bird's-eye view of your academic day:
+
+- **Today's Schedule** — Study sessions from Study Planner and events from Google Calendar (if connected).
+- **Upcoming Deadlines** — Color-coded assignment deadlines pulled from the Assignment Tracker:
+  - 🟢 Green: more than 3 days away
+  - 🟡 Yellow: 1–3 days away
+  - 🔴 Red: due within 24 hours
+  - ⚫ Grey: overdue
+- **Review Due** — Number of flashcard decks with cards due for review today.
+- **XP & Streak** — Your current level, XP progress bar, and daily study streak (requires Gamification module).
+- **AI Daily Briefing** — Click **🤖 Get Today's Briefing** for a personalized summary of your day based on all connected data.
+- **Quick Launch Grid** — One-click buttons to open any Gizmo feature.
+- **Weekly Progress** — Charts showing study time, quizzes completed, assignments done.
+- **Motivational Quote** — A new quote each time you click **✨ New Quote**.
+
+Data is read from: `user_data/study_planner/`, `user_data/assignments.json`, `user_data/flashcards/`, `user_data/gamification.json`, `user_data/pomodoro_stats.json`.
+
+---
+
+### Music Integration
+
+**Anchor:** `#music-integration`
+
+The **🎵 Music** tab lets you listen to music while studying:
+
+- **Platform selector** — Choose Spotify or YouTube Music.
+- **Now Playing** — Album art, track name, artist, and playback controls (⏮ ▶/⏸ ⏭, volume slider).
+- **Search** — Find songs, albums, artists, and playlists.
+- **AI Study Playlists** — Select a mood (Focused, Calm, Energetic, etc.) and optionally a subject, then click **🎵 Generate Study Playlist** for AI-powered playlist suggestions.
+- **Pomodoro Integration** — Assign different playlists to focus and break sessions; enable **Auto-play** to let music start/stop automatically with the timer.
+- **Ambient Sounds** — Choose from Lofi, Rain, Coffee Shop, Library, Nature, or White Noise; mix ambient volume alongside music.
+- **Your Playlists** — Browse and play your saved playlists.
+
+Settings are saved to `user_data/music_settings.json`.
+
+---
+
+### Connector Manager
+
+**Anchor:** `#connector-manager`
+
+The **🔗 Connections** tab is your central hub for managing all Gizmo integrations:
+
+- **Status Grid** — See at a glance which connectors are 🟢 Connected, 🔴 Disconnected, or 🟡 in Error.
+- **AI Integration Banner** — Shows which connectors are currently feeding data to the AI in Chat.
+- **Setup Panel** — Select any connector from the dropdown to see step-by-step setup instructions, enter credentials, and test the connection.
+- **Tutorial Buttons** — Each connector card links directly to its README setup section.
+- **Quick Actions:**
+  - **🔄 Refresh All** — Re-check connection status for all connectors.
+  - **📊 View Stats** — See usage statistics per connector.
+
+Connectors managed: Google Slides, Google Docs, Google Sheets, Google Calendar, Google Drive, Gmail, Google Classroom, Notion, GitHub, Discord, Spotify, YouTube Music.
+
+---
+
+### Google Drive
+
+**Anchor:** `#google-drive`
+
+The **📁 Google Drive** tab lets you browse, search, and manage your Drive files from within Gizmo:
+
+- **Browse & Search** — Search by filename, filter by type (Documents, Spreadsheets, PDFs, Presentations, Images).
+- **File Table** — Sortable table showing Name, Type, Size, Last Modified, Owner.
+- **Open Files** — Open Google Docs → view content in Gizmo; PDFs → extract text; Sheets → display as table.
+- **Upload** — Upload any file to a chosen Drive folder.
+- **Gizmo Sync Folder** — Designate a Drive folder that receives all Gizmo exports automatically.
+- **Connect to AI** — Toggle AI access to your selected Drive files in Chat.
+
+Settings saved to `user_data/google_drive_settings.json`.
+
+---
+
+### Gmail
+
+**Anchor:** `#gmail`
+
+The **📧 Gmail** tab brings your email into Gizmo:
+
+- **Inbox** — Fetch and browse recent emails; click any row to read the full message.
+- **AI Actions** — Summarize selected emails; draft replies with adjustable tone (Formal, Casual, Professional, Friendly).
+- **Compose** — Write new emails with AI drafting assistance.
+- **Classroom Alerts** — Automatically detects Google Classroom notification emails and offers to add assignments to your calendar.
+- **Search** — Advanced search by keyword, sender, and date range.
+- **Connect to AI** — AI in Chat can read selected emails and help craft responses.
+
+---
+
+### Google Classroom
+
+**Anchor:** `#google-classroom`
+
+The **🎓 Google Classroom** tab connects Gizmo to your classes:
+
+- **Course Selector** — Searchable dropdown lists all enrolled courses.
+- **Assignments** — View all assignments with title, due date, status, and grade; sync to Assignment Tracker and Calendar.
+- **AI Study Tools** — Per assignment: generate flashcards, a quiz, or structured study notes with one click.
+- **Announcements** — View class announcements with AI summarization.
+- **Materials** — Browse class materials; open Google Docs/Slides/PDFs directly in the corresponding Gizmo tab.
+- **Grades** — See grades per course with automatic GPA calculation.
+- **Connect to AI** — AI can see your courses, assignments, and materials in Chat.
