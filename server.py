@@ -71,6 +71,11 @@ from modules import (
     ui_flashcards,
     ui_quiz,
     ui_study_planner,
+    ui_voice_chat,
+    ui_image_understanding,
+    ui_web_search_tab,
+    ui_model_compare,
+    ui_memory,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -206,6 +211,11 @@ def create_interface():
         ui_flashcards.create_ui()  # Flashcards tab
         ui_quiz.create_ui()  # Quiz Mode tab
         ui_study_planner.create_ui()  # Study Planner tab
+        ui_voice_chat.create_ui()  # Voice Chat tab
+        ui_image_understanding.create_ui()  # Image Understanding tab
+        ui_web_search_tab.create_ui()  # Web Search tab
+        ui_model_compare.create_ui()  # Model Compare tab
+        ui_memory.create_ui()  # Memory tab
 
         # Generation events
         ui_chat.create_event_handlers()
@@ -223,6 +233,11 @@ def create_interface():
         ui_flashcards.create_event_handlers()
         ui_quiz.create_event_handlers()
         ui_study_planner.create_event_handlers()
+        ui_voice_chat.create_event_handlers()
+        ui_image_understanding.create_event_handlers()
+        ui_web_search_tab.create_event_handlers()
+        ui_model_compare.create_event_handlers()
+        ui_memory.create_event_handlers()
         ui_knowledge.create_event_handlers()
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
