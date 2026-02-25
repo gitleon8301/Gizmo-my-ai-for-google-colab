@@ -82,6 +82,7 @@ from modules import (
     ui_web_search_tab,
     ui_model_compare,
     ui_memory,
+    ui_smart_context,
     ui_theme_toggle,
     ui_note_taker,
     ui_pomodoro,
@@ -94,6 +95,12 @@ from modules import (
     ui_essay_writer,
     ui_tts_reader,
     ui_backup,
+    ui_dashboard,
+    ui_connector_manager,
+    ui_google_drive,
+    ui_gmail,
+    ui_google_classroom,
+    ui_music,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -203,6 +210,7 @@ def create_interface():
         ui_launch.create_ui()
 
         # Chat tab
+        ui_dashboard.create_ui()         # Dashboard tab (first)
         ui_chat.create_ui()
         ui_chat_folders.create_ui()  # Chat Folders panel (inside chat context)
         ui_chat_export.create_ui()   # Export Chat panel (inside chat context)
@@ -215,6 +223,7 @@ def create_interface():
         ui_parameters.create_ui()  # Parameters tab
         ui_chat.create_character_settings_ui()  # Character tab
         ui_model_menu.create_ui()  # Model tab
+        ui_connector_manager.create_ui()  # Connections tab
         if not shared.args.portable:
             ui_image_generation.create_ui()  # Image generation tab
             training.create_ui()  # Training tab
@@ -235,6 +244,10 @@ def create_interface():
         ui_google_docs.create_ui()  # Google Docs tab
         ui_google_sheets.create_ui()  # Google Sheets tab
         ui_pdf_reader.create_ui()  # PDF Reader tab
+        ui_google_drive.create_ui()   # Google Drive tab
+        ui_gmail.create_ui()          # Gmail tab
+        ui_google_classroom.create_ui()  # Google Classroom tab
+        ui_music.create_ui()          # Music tab
         ui_flashcards.create_ui()  # Flashcards tab
         ui_quiz.create_ui()  # Quiz Mode tab
         ui_study_planner.create_ui()  # Study Planner tab
@@ -243,6 +256,7 @@ def create_interface():
         ui_web_search_tab.create_ui()  # Web Search tab
         ui_model_compare.create_ui()  # Model Compare tab
         ui_memory.create_ui()  # Memory tab
+        ui_smart_context.create_ui()  # Smart Context tab
         ui_note_taker.create_ui()  # AI Note-Taker tab
         ui_pomodoro.create_ui()  # Pomodoro Timer tab
         ui_math_solver.create_ui()  # Math Solver tab
@@ -256,6 +270,7 @@ def create_interface():
         ui_backup.create_ui()  # Backup & Restore tab
 
         # Generation events
+        ui_dashboard.create_event_handlers()
         ui_chat.create_event_handlers()
         ui_chat_folders.create_event_handlers()  # Chat Folders events
         ui_chat_export.create_event_handlers()   # Export Chat events
@@ -282,6 +297,7 @@ def create_interface():
         ui_web_search_tab.create_event_handlers()
         ui_model_compare.create_event_handlers()
         ui_memory.create_event_handlers()
+        ui_smart_context.create_event_handlers()
         ui_note_taker.create_event_handlers()
         ui_pomodoro.create_event_handlers()
         ui_math_solver.create_event_handlers()
@@ -296,6 +312,11 @@ def create_interface():
         ui_essay_writer.create_event_handlers()
         ui_tts_reader.create_event_handlers()
         ui_backup.create_event_handlers()
+        ui_connector_manager.create_event_handlers()
+        ui_google_drive.create_event_handlers()
+        ui_gmail.create_event_handlers()
+        ui_google_classroom.create_event_handlers()
+        ui_music.create_event_handlers()
         if not shared.args.portable:
             ui_image_generation.create_event_handlers()
 
