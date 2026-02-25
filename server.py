@@ -35,7 +35,6 @@ import matplotlib
 
 matplotlib.use('Agg')  # This fixes LaTeX rendering on some systems
 
-import os
 import signal
 import sys
 import time
@@ -126,7 +125,7 @@ def signal_handler(sig, frame):
     if shared.model and shared.model.__class__.__name__ == 'LlamaServer':
         try:
             shared.model.stop()
-        except:
+        except BaseException:
             pass
 
     sys.exit(0)

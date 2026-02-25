@@ -18,6 +18,17 @@ from modules.feedback import submit_feedback
 
 app = Flask(__name__)
 
+_MAX_PROMPT_LENGTH = 32768
+
+
+@app.get('/health')
+def health_check():
+    from modules import shared
+    return jsonify({
+        "status": "ok",
+        "model_loaded": shared.model is not None,
+        "model_name": getattr(shared, 'model_name', None),
+    })
 # ---------------------------------------------------------------------------
 # Simple in-memory sliding-window rate limiter
 # ---------------------------------------------------------------------------
@@ -48,6 +59,10 @@ def _rate_limit(max_requests: int, window_seconds: int = 60):
 def chat_endpoint():
     data = request.get_json(force=True, silent=True) or {}
     prompt = data.get('prompt', '')
+    if not prompt:
+        return jsonify({"error": "prompt is required"}), 400
+    if len(prompt) > _MAX_PROMPT_LENGTH:
+        return jsonify({"error": f"prompt exceeds maximum length of {_MAX_PROMPT_LENGTH}"}), 400
     mem = memory.format_memory_context(prompt, top_k=4)
     rag = rag_engine.format_rag_context(prompt, top_k=3)
     return jsonify({"prompt": prompt, "memory": mem, "rag": rag, "response": "Use main web UI model endpoint for full generation."})

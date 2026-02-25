@@ -1361,10 +1361,8 @@ def load_last_chat_state():
         try:
             with open(state_file, 'r', encoding='utf-8') as f:
                 return json.loads(f.read())
-        except:
+        except Exception:
             pass
-
-    return {"last_chats": {}}
 
 
 def save_last_chat_state(character, mode, unique_id):
@@ -1433,11 +1431,8 @@ def load_history_json(file, history):
                     update_message_metadata(history['metadata'], "assistant", i, timestamp="")
 
         return history
-    except:
+    except Exception:
         return history
-
-
-def delete_history(unique_id, character, mode):
     p = get_history_file_path(unique_id, character, mode)
     delete_file(p)
 
@@ -1587,7 +1582,7 @@ def upload_character(file, img_path, tavern=False):
     decoded_file = file if isinstance(file, str) else file.decode('utf-8')
     try:
         data = json.loads(decoded_file)
-    except:
+    except Exception:
         data = yaml.safe_load(decoded_file)
 
     if 'char_name' in data:
