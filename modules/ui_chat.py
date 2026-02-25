@@ -747,6 +747,7 @@ def create_ui():
                             value="<div class='gh-status-bar gh-idle'>Connect in the sidebar (🔧 GitHub Agent) then use this panel.</div>",
                         )
 
+                with gr.Row(elem_id='chat-input-row'):
                     with gr.Column(scale=10, elem_id='chat-input-container'):
                         # prettier, larger chat input
                         shared.gradio['textbox'] = gr.Textbox(
