@@ -139,7 +139,11 @@ def generate_chat_prompt(user_input, state, **kwargs):
 
     insert_pos = len(messages)
     for i, entry in enumerate(reversed(history)):
-        user_msg = entry[0].strip()
+        # defensive: handle None and non-strs
+        user_msg = entry[0] if entry and len(entry) > 0 and entry[0] is not None else ""
+        if not isinstance(user_msg, str):
+            user_msg = str(user_msg)
+        user_msg = user_msg.strip()
         assistant_msg = entry[1].strip()
         tool_msg = entry[2].strip() if len(entry) > 2 else ''
 
