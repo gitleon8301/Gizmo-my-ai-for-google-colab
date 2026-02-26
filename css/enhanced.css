@@ -8,6 +8,7 @@
     --gizmo-accent: #10a37f;
 }
 
+body,
 .gradio-container {
     background: radial-gradient(circle at top, #ffffff 0%, var(--gizmo-bg) 45%, #f3f4f6 100%);
 }
