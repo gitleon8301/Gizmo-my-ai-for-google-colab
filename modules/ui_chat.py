@@ -652,7 +652,22 @@ def create_ui():
                 # ── GitHub Agent full panel ───────────────────────────────────
                 with gr.Row(visible=False, elem_id='gh-main-panel-row') as shared.gradio['gh_panel_row']:
                     with gr.Column(elem_id='gh-main-panel'):
-                        gr.HTML("""/* add to a style block in the UI file */
+                        gr.HTML("""<style>
+#chat-folders-accordion, #export-chat-accordion {
+    margin-top: 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+}
+#chat-folders-accordion summary, #export-chat-accordion summary {
+    font-weight: 600;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#chat-folders-accordion summary:hover, #export-chat-accordion summary:hover {
+    background: rgba(255,255,255,0.05);
+}
+
 .ui-chat-textarea textarea, .ui-chat-textarea input, textarea#chat-input {
     border-radius: 12px !important;
     box-shadow: 0 12px 32px rgba(0,0,0,0.45) !important;
@@ -674,7 +689,6 @@ def create_ui():
     border-color: rgba(80,140,255,0.2) !important;
 }
 
-/* styling for relocated Git button */
 .moved-git-btn {
     margin-right: 8px;
     border-radius: 10px;
@@ -685,7 +699,8 @@ def create_ui():
     color: #e6eef6;
     border: 1px solid rgba(255,255,255,0.03);
     cursor: pointer;
-}""")
+}
+</style>""")
 
                         # Session state (JSON blob)
                         shared.gradio['gh_session'] = gr.State("{}")
@@ -996,10 +1011,14 @@ def create_ui():
             shared.gradio['edit_message_role'] = gr.Textbox(value="", elem_id="Edit-message-role")
             shared.gradio['edit_message'] = gr.Button(elem_id="Edit-message")
 
-        # Chat Folders and Export panels — rendered inside the Chat tab
-        from modules import ui_chat_folders, ui_chat_export
-        ui_chat_folders.create_ui()
-        ui_chat_export.create_ui()
+        # Chat Folders and Export panels — collapsible accordions
+        with gr.Accordion('📁 Chat Folders', open=False, elem_id='chat-folders-accordion'):
+            from modules import ui_chat_folders
+            ui_chat_folders.create_ui()
+        
+        with gr.Accordion('📥 Export Chat', open=False, elem_id='export-chat-accordion'):
+            from modules import ui_chat_export
+            ui_chat_export.create_ui()
 
 
 def create_character_settings_ui():
