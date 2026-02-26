@@ -729,11 +729,6 @@ if (chatTab && !document.getElementById("chat-popup-buttons")) {
 function handleIndividualSidebarClose(event) {
   const target = event.target;
 
-  // Close navigation bar if click is outside and it is open
-  if (!headerBar.contains(target) && !headerBar.classList.contains("sidebar-hidden")) {
-    toggleSidebar(headerBar, navigationToggle, true);
-  }
-
   // Close past chats row if click is outside and it is open
   if (!pastChatsRow.contains(target) && !pastChatsRow.classList.contains("sidebar-hidden")) {
     toggleSidebar(pastChatsRow, pastChatsToggle, true);
@@ -754,11 +749,8 @@ function toggleSidebar(sidebar, toggle, forceClose = false) {
   sidebar.classList.toggle("sidebar-shown", !shouldClose);
 
   if (sidebar === headerBar) {
-    // Special handling for header bar
-    document.documentElement.style.setProperty("--header-width", shouldClose ? "0px" : "112px");
-    pastChatsRow.classList.toggle("negative-header", shouldClose);
-    pastChatsToggle.classList.toggle("negative-header", shouldClose);
-    toggle.innerHTML = shouldClose ? hamburgerMenuSVG : closeMenuSVG;
+    // Header tabs stay visible at the top in the new layout.
+    return;
   } else if (sidebar === pastChatsRow) {
     // Past chats sidebar
     toggle.classList.toggle("past-chats-closed", shouldClose);
@@ -839,9 +831,6 @@ chatControlsToggle.addEventListener("click", () => {
   toggleSidebar(chatControlsRow, chatControlsToggle);
 });
 
-navigationToggle.addEventListener("click", () => {
-  toggleSidebar(headerBar, navigationToggle);
-});
 
 //------------------------------------------------
 // Fixes #chat-input textarea height issue
