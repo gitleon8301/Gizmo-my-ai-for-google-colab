@@ -30,7 +30,11 @@ def fetch_transcript(video_id: str, language: str = 'en') -> dict:
     try:
         from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
     except ImportError:
-        return {"error": "youtube-transcript-api is not installed. Run: pip install youtube-transcript-api"}
+        from modules.dependency_manager import ensure_packages
+        ok, msg = ensure_packages("YouTube")
+        if not ok:
+            return {"error": msg}
+        from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
 
     try:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
