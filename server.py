@@ -103,6 +103,7 @@ from modules import (
     ui_gmail,
     ui_google_classroom,
     ui_music,
+    ui_advanced_dev,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -298,6 +299,11 @@ def create_interface():
                 ui_assignment_tracker.create_ui()
                 ui_memory.create_ui()
 
+        # "👨‍💻 Advanced Developer" group
+        with gr.Tab("👨‍💻 Advanced Developer"):
+            with gr.Tabs():
+                ui_advanced_dev.create_ui()
+
         # "⚙️ Advanced" group
         with gr.Tab("⚙️ Advanced"):
             with gr.Tabs():
@@ -361,6 +367,7 @@ def create_interface():
         ui_gmail.create_event_handlers()
         ui_google_classroom.create_event_handlers()
         ui_music.create_event_handlers()
+        ui_advanced_dev.create_event_handlers()
         if not shared.args.portable:
             ui_image_generation.create_event_handlers()
 
