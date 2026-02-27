@@ -70,12 +70,14 @@ THEME_TOGGLE_HTML = """
         updateButtonIcon();
     };
 
-    // Initial sync on load.
+    // Initial sync on load — default to dark mode.
     const saved = localStorage.getItem('theme');
-    if (saved === 'dark') {
-        document.body.classList.add('dark');
-    } else if (saved === 'light') {
+    if (saved === 'light') {
         document.body.classList.remove('dark');
+    } else {
+        // Default to dark if no preference saved, or if explicitly 'dark'.
+        document.body.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
     }
 
     setHighlightByTheme(document.body.classList.contains('dark'));
