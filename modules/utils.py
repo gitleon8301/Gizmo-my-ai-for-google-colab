@@ -1,3 +1,61 @@
+import json
+FAVORITES_PATH = os.path.join("user_data", "model_favorites.json")
+
+def load_model_favorites():
+    try:
+        with open(FAVORITES_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"favorites": [], "tags": {}}
+
+def save_model_favorites(data):
+    try:
+        with open(FAVORITES_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save favorites: {e}")
+
+def add_favorite_model(model_id):
+    data = load_model_favorites()
+    if model_id not in data["favorites"]:
+        data["favorites"].append(model_id)
+        save_model_favorites(data)
+
+def remove_favorite_model(model_id):
+    data = load_model_favorites()
+    if model_id in data["favorites"]:
+        data["favorites"].remove(model_id)
+        save_model_favorites(data)
+
+def is_favorite_model(model_id):
+    data = load_model_favorites()
+    return model_id in data["favorites"]
+
+def add_model_tag(model_id, tag):
+    data = load_model_favorites()
+    tags = data["tags"].setdefault(model_id, [])
+    if tag not in tags:
+        tags.append(tag)
+        save_model_favorites(data)
+
+def remove_model_tag(model_id, tag):
+    data = load_model_favorites()
+    tags = data["tags"].get(model_id, [])
+    if tag in tags:
+        tags.remove(tag)
+        save_model_favorites(data)
+
+def get_model_tags(model_id):
+    data = load_model_favorites()
+    return data["tags"].get(model_id, [])
+
+def get_all_favorite_models():
+    data = load_model_favorites()
+    return data["favorites"]
+
+def get_all_model_tags():
+    data = load_model_favorites()
+    return data["tags"]
 import os
 import re
 from datetime import datetime
