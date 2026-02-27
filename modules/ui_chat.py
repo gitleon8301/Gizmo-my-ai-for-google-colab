@@ -804,9 +804,32 @@ def create_ui():
 ''', elem_id='connector-plus-html')
 
                     with gr.Column(scale=1, elem_id='generate-stop-container'):
+
                         with gr.Row():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
+                            shared.gradio['ShowThinking'] = gr.Button('Show Thinking', elem_id='show-thinking', variant='secondary')
+
+                        # Tokens/sec display under chat
+                        shared.gradio['tokens_per_sec'] = gr.HTML(value='<div id="tokens-per-sec" style="color:#8ec8ff;font-size:13px;display:none"></div>')
+
+                        # Add a hidden backend_status state for live updates (must be defined before use)
+                        shared.gradio['backend_status'] = gr.State('')
+
+                        # Show Thinking button logic: when clicked, display a live backend status message (no emoji) under the button
+                        def show_thinking_status_callback(history, status=None):
+                            # Insert a backend status message in the chat display (under the button)
+                            if isinstance(history, dict) and 'visible' in history and history['visible']:
+                                status_text = status if status else 'Waiting for backend status...'
+                                history['visible'][-1][1] = f'<div id="thinking-status" style="color:#8ec8ff;font-size:13px;margin-top:6px;">{status_text}</div>'
+                            return history
+
+                        shared.gradio['ShowThinking'].click(
+                            show_thinking_status_callback,
+                            [gradio('history'), gradio('backend_status')],
+                            gradio('history'),
+                            show_progress=False
+                        )
                         
 
 
@@ -1153,6 +1176,20 @@ def create_event_handlers():
             return
         target.click(fn, gradio(*input_keys) if input_keys else None, gradio(*output_keys) if output_keys else None, show_progress=False)
 
+
+    def update_tokens_and_status(result):
+        # Update tokens/sec and backend status in the UI
+        tokens_html = None
+        status_update = None
+        if isinstance(result, dict):
+            if "tokens_per_sec" in result:
+                val = result["tokens_per_sec"]
+                tokens_html = gr.update(value=f'<div id="tokens-per-sec" style="color:#8ec8ff;font-size:13px;">Tokens/sec: {val:.2f}</div>', visible=True)
+            if "backend_status" in result:
+                # Update backend_status state for Show Thinking button
+                status_update = gr.update(value=result["backend_status"])
+        return tokens_html or gr.update(visible=False), status_update or gr.update()
+
     shared.gradio['Generate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
         lambda x: x, gradio('textbox'), gradio('Chat input'), show_progress=False).then(
@@ -1163,6 +1200,7 @@ def create_event_handlers():
         lambda x: {"text": "", "files": []}, None, gradio('textbox'), show_progress=False).then(
         lambda: None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.add("_generating")').then(
         chat.generate_chat_reply_wrapper, gradio(inputs), gradio('display', 'history'), show_progress=False).then(
+        update_tokens_and_status, None, [gradio('tokens_per_sec'), gradio('backend_status')], show_progress=False).then(
         None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.remove("_generating")').then(
         None, None, None, js=f'() => {{{ui.audio_notification_js}}}')
 
