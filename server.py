@@ -86,6 +86,7 @@ from modules import (
     ui_note_taker,
     ui_pomodoro,
     ui_math_solver,
+    ui_code_tutor,
     ui_reading_list,
     ui_assignment_tracker,
     ui_translation,
@@ -251,6 +252,7 @@ def create_interface():
                 ui_quiz.create_ui()
                 ui_study_planner.create_ui()
                 ui_math_solver.create_ui()
+                ui_code_tutor.create_ui()
                 ui_weekly_planner.create_ui()
                 ui_collaborative_study.create_ui()
                 ui_gamification.create_ui()
@@ -340,6 +342,7 @@ def create_interface():
         ui_note_taker.create_event_handlers()
         ui_pomodoro.create_event_handlers()
         ui_math_solver.create_event_handlers()
+        ui_code_tutor.create_event_handlers()
         ui_reading_list.create_event_handlers()
         ui_assignment_tracker.create_event_handlers()
         ui_knowledge.create_event_handlers()
