@@ -1,64 +1,634 @@
-/* Refined ChatGPT/Claude-like theme polish without breaking core Gradio layout */
+/* ============================================================
+   GIZMO REDESIGN — Claude / GitHub inspired premium UI
+   ============================================================
+   All styling layers on top of Gradio's generated HTML.
+   Dark mode = body.dark   |   Light mode = no .dark class
+   ============================================================ */
+
+/* -------------------------------------------------------
+   1.  CSS CUSTOM PROPERTIES  (dual palette)
+   ------------------------------------------------------- */
 :root {
-    --gizmo-bg: #f7f7f8;
-    --gizmo-surface: #ffffff;
-    --gizmo-border: #e5e7eb;
-    --gizmo-text: #111827;
-    --gizmo-muted: #6b7280;
-    --gizmo-accent: #10a37f;
+    /* ---------- Light palette ---------- */
+    --g-bg:           #f8f9fb;
+    --g-bg-secondary: #ffffff;
+    --g-surface:      #ffffff;
+    --g-surface-hover:#f1f3f5;
+    --g-border:       #e2e5ea;
+    --g-border-focus: #9aa3b0;
+    --g-text:         #1a1d23;
+    --g-text-secondary:#5f6672;
+    --g-text-muted:   #8b919d;
+    --g-accent:       #6c63ff;
+    --g-accent-hover: #5a52e0;
+    --g-accent-soft:  rgba(108,99,255,.08);
+    --g-success:      #23c97d;
+    --g-warning:      #f5a623;
+    --g-danger:       #ef4444;
+    --g-shadow-sm:    0 1px 3px rgba(0,0,0,.06);
+    --g-shadow-md:    0 4px 16px rgba(0,0,0,.08);
+    --g-shadow-lg:    0 10px 40px rgba(0,0,0,.10);
+    --g-glass-bg:     rgba(255,255,255,.72);
+    --g-glass-border: rgba(255,255,255,.5);
+    --g-radius:       12px;
+    --g-radius-sm:    8px;
+    --g-radius-pill:  999px;
+    --g-sidebar-w:    260px;
+    --g-transition:   .22s cubic-bezier(.4,0,.2,1);
 }
 
+.dark {
+    /* ---------- Dark palette ---------- */
+    --g-bg:           #0f0f17;
+    --g-bg-secondary: #16161f;
+    --g-surface:      #1c1c28;
+    --g-surface-hover:#262636;
+    --g-border:       #2a2a3d;
+    --g-border-focus: #6c63ff;
+    --g-text:         #e4e6eb;
+    --g-text-secondary:#a0a4b0;
+    --g-text-muted:   #686d7a;
+    --g-accent:       #817aff;
+    --g-accent-hover: #6c63ff;
+    --g-accent-soft:  rgba(129,122,255,.12);
+    --g-success:      #34d399;
+    --g-warning:      #fbbf24;
+    --g-danger:       #f87171;
+    --g-shadow-sm:    0 1px 3px rgba(0,0,0,.25);
+    --g-shadow-md:    0 4px 16px rgba(0,0,0,.35);
+    --g-shadow-lg:    0 10px 40px rgba(0,0,0,.45);
+    --g-glass-bg:     rgba(28,28,40,.78);
+    --g-glass-border: rgba(255,255,255,.06);
+    --g-radius:       12px;
+    --g-radius-sm:    8px;
+}
+
+/* -------------------------------------------------------
+   2.  GLOBAL FOUNDATIONS
+   ------------------------------------------------------- */
 body,
 .gradio-container {
-    background: radial-gradient(circle at top, #ffffff 0%, var(--gizmo-bg) 45%, #f3f4f6 100%);
+    background: var(--g-bg) !important;
+    color: var(--g-text) !important;
+    transition: background var(--g-transition), color var(--g-transition);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-.header_bar {
-    position: sticky;
+/* Subtle animated gradient behind the whole page */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+        radial-gradient(ellipse 70% 50% at 20% 20%, var(--g-accent-soft), transparent),
+        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(35,201,125,.05), transparent);
+    pointer-events: none;
+    transition: background var(--g-transition);
+}
+
+/* -------------------------------------------------------
+   3.  TOP-LEVEL TAB BAR  →  SIDEBAR
+   ------------------------------------------------------- */
+
+/* The outermost .tabs > .tab-nav is the main navigation bar */
+.gradio-container > .main > .wrap > .contain > .tabs > .tab-nav,
+body > gradio-app > .main > .wrap > .contain > .tabs > .tab-nav {
+    /* Sidebar positioning */
+    position: fixed !important;
+    left: 0;
     top: 0;
-    z-index: 40;
-    backdrop-filter: blur(8px);
-    background: rgba(247, 247, 248, 0.9);
-    border-bottom: 1px solid var(--gizmo-border);
+    bottom: 0;
+    width: var(--g-sidebar-w);
+    z-index: 200;
+
+    /* Layout */
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    gap: 2px;
+    padding: 60px 10px 16px !important;
+
+    /* Appearance */
+    background: var(--g-glass-bg) !important;
+    backdrop-filter: blur(16px) saturate(1.6);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
+    border-right: 1px solid var(--g-border) !important;
+    border-bottom: none !important;
+    box-shadow: var(--g-shadow-md);
+
+    transition: transform var(--g-transition), background var(--g-transition);
 }
 
+/* When sidebar is collapsed (toggled via JS) */
+body.sidebar-collapsed .gradio-container > .main > .wrap > .contain > .tabs > .tab-nav,
+body.sidebar-collapsed > gradio-app > .main > .wrap > .contain > .tabs > .tab-nav {
+    transform: translateX(calc(-1 * var(--g-sidebar-w)));
+}
+
+/* Push the main content right to make room for sidebar */
+.gradio-container > .main > .wrap > .contain > .tabs > .tabitem,
+body > gradio-app > .main > .wrap > .contain > .tabs > .tabitem {
+    margin-left: var(--g-sidebar-w) !important;
+    transition: margin-left var(--g-transition);
+}
+
+body.sidebar-collapsed .gradio-container > .main > .wrap > .contain > .tabs > .tabitem,
+body.sidebar-collapsed > gradio-app > .main > .wrap > .contain > .tabs > .tabitem {
+    margin-left: 0 !important;
+}
+
+/* Sidebar nav buttons */
+.gradio-container > .main > .wrap > .contain > .tabs > .tab-nav > button,
+body > gradio-app > .main > .wrap > .contain > .tabs > .tab-nav > button {
+    width: 100%;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding: 10px 14px !important;
+    border-radius: var(--g-radius-sm) !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--g-text-secondary) !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all var(--g-transition);
+    position: relative;
+}
+
+.gradio-container > .main > .wrap > .contain > .tabs > .tab-nav > button:hover,
+body > gradio-app > .main > .wrap > .contain > .tabs > .tab-nav > button:hover {
+    background: var(--g-surface-hover) !important;
+    color: var(--g-text) !important;
+}
+
+.gradio-container > .main > .wrap > .contain > .tabs > .tab-nav > button.selected,
+body > gradio-app > .main > .wrap > .contain > .tabs > .tab-nav > button.selected {
+    background: var(--g-accent-soft) !important;
+    color: var(--g-accent) !important;
+    font-weight: 600 !important;
+}
+
+.gradio-container > .main > .wrap > .contain > .tabs > .tab-nav > button.selected::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--g-accent);
+}
+
+/* -------------------------------------------------------
+   4.  INNER TAB BARS  (sub-tabs inside groups)
+   ------------------------------------------------------- */
 .tabs > .tab-nav {
-    padding: 6px 8px;
-    gap: 6px;
+    padding: 4px 6px;
+    gap: 4px;
+    border-bottom: 1px solid var(--g-border) !important;
+    background: transparent !important;
 }
 
 .tabs > .tab-nav > button {
-    border-radius: 999px !important;
-    border: 1px solid var(--gizmo-border) !important;
-    background: var(--gizmo-surface) !important;
-    color: var(--gizmo-text) !important;
-    font-weight: 600;
+    border-radius: var(--g-radius-pill) !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--g-text-secondary) !important;
+    font-weight: 500;
+    font-size: 13px !important;
+    padding: 6px 14px !important;
+    transition: all var(--g-transition);
+}
+
+.tabs > .tab-nav > button:hover {
+    background: var(--g-surface-hover) !important;
+    color: var(--g-text) !important;
 }
 
 .tabs > .tab-nav > button.selected {
-    background: #ecfdf5 !important;
-    border-color: #6ee7b7 !important;
-    color: #065f46 !important;
+    background: var(--g-accent-soft) !important;
+    border-color: var(--g-accent) !important;
+    color: var(--g-accent) !important;
+    font-weight: 600;
 }
 
-#chat-col, #dashboard-tab {
-    border: 1px solid var(--gizmo-border);
-    border-radius: 16px;
-    background: var(--gizmo-surface);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+/* -------------------------------------------------------
+   5.  CARDS / BLOCKS  (Glassmorphism panels)
+   ------------------------------------------------------- */
+.block,
+.form,
+.panel {
+    background: var(--g-surface) !important;
+    border: 1px solid var(--g-border) !important;
+    border-radius: var(--g-radius) !important;
+    box-shadow: var(--g-shadow-sm);
+    transition: box-shadow var(--g-transition), border-color var(--g-transition), background var(--g-transition);
 }
 
-#chat-input textarea,
-.ui-chat-textarea textarea {
-    border-radius: 14px !important;
-    border: 1px solid var(--gizmo-border) !important;
-    background: #ffffff !important;
-    color: var(--gizmo-text) !important;
-    box-shadow: 0 4px 18px rgba(2, 6, 23, 0.06) !important;
+.block:hover {
+    box-shadow: var(--g-shadow-md);
 }
 
-#chat-input textarea:focus,
-.ui-chat-textarea textarea:focus {
-    border-color: #86efac !important;
-    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.15) !important;
+/* Tab content areas */
+.tabitem {
+    animation: gizmo-fadeIn .35s ease-out;
+}
+
+@keyframes gizmo-fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* -------------------------------------------------------
+   6.  BUTTONS
+   ------------------------------------------------------- */
+
+/* Primary */
+button.primary,
+.gr-button-primary,
+button[variant="primary"] {
+    background: linear-gradient(135deg, var(--g-accent), var(--g-accent-hover)) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: var(--g-radius-sm) !important;
+    font-weight: 600 !important;
+    padding: 8px 18px !important;
+    box-shadow: 0 2px 8px rgba(108,99,255,.25);
+    transition: all var(--g-transition);
+    position: relative;
+    overflow: hidden;
+}
+
+button.primary:hover,
+.gr-button-primary:hover,
+button[variant="primary"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(108,99,255,.35);
+}
+
+button.primary:active,
+.gr-button-primary:active,
+button[variant="primary"]:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(108,99,255,.2);
+}
+
+/* Secondary / Ghost */
+button.secondary,
+.gr-button-secondary,
+button:not(.primary):not([variant="primary"]):not(.selected) {
+    background: transparent !important;
+    color: var(--g-text-secondary) !important;
+    border: 1px solid var(--g-border) !important;
+    border-radius: var(--g-radius-sm) !important;
+    transition: all var(--g-transition);
+}
+
+button.secondary:hover,
+.gr-button-secondary:hover {
+    background: var(--g-surface-hover) !important;
+    color: var(--g-text) !important;
+    border-color: var(--g-border-focus) !important;
+}
+
+/* Ripple effect (injected via JS) */
+.gizmo-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,.3);
+    transform: scale(0);
+    animation: gizmo-ripple .5s ease-out;
+    pointer-events: none;
+}
+
+@keyframes gizmo-ripple {
+    to { transform: scale(4); opacity: 0; }
+}
+
+/* -------------------------------------------------------
+   7.  INPUTS / TEXTAREAS
+   ------------------------------------------------------- */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+textarea,
+.gr-input,
+.gr-textarea {
+    background: var(--g-bg-secondary) !important;
+    border: 1px solid var(--g-border) !important;
+    border-radius: var(--g-radius-sm) !important;
+    color: var(--g-text) !important;
+    transition: border-color var(--g-transition), box-shadow var(--g-transition);
+}
+
+input:focus,
+textarea:focus {
+    border-color: var(--g-accent) !important;
+    box-shadow: 0 0 0 3px var(--g-accent-soft) !important;
+    outline: none !important;
+}
+
+/* Code editor */
+.cm-editor,
+.code-editor textarea {
+    border-radius: var(--g-radius-sm) !important;
+    font-family: 'IBM Plex Mono', 'Fira Code', 'Cascadia Code', monospace !important;
+}
+
+/* -------------------------------------------------------
+   8.  ACCORDION PANELS
+   ------------------------------------------------------- */
+.accordion {
+    border: 1px solid var(--g-border) !important;
+    border-radius: var(--g-radius) !important;
+    overflow: hidden;
+    transition: border-color var(--g-transition);
+}
+
+.accordion > .label-wrap {
+    background: var(--g-surface) !important;
+    padding: 12px 16px !important;
+    cursor: pointer;
+    transition: background var(--g-transition);
+}
+
+.accordion > .label-wrap:hover {
+    background: var(--g-surface-hover) !important;
+}
+
+/* -------------------------------------------------------
+   9.  CHAT MESSAGES
+   ------------------------------------------------------- */
+.chat .message {
+    animation: gizmo-slideUp .3s ease-out;
+}
+
+@keyframes gizmo-slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.message-body {
+    line-height: 1.7;
+}
+
+.message-body pre > code {
+    border-radius: var(--g-radius-sm) !important;
+    border: 1px solid var(--g-border) !important;
+}
+
+.dark .message-body pre > code {
+    background: #12121e !important;
+}
+
+/* Chat input area */
+#chat-input textarea {
+    background: var(--g-surface) !important;
+    border: 1px solid var(--g-border) !important;
+    border-radius: 16px !important;
+    color: var(--g-text) !important;
+    box-shadow: var(--g-shadow-md) !important;
+    transition: all var(--g-transition);
+}
+
+#chat-input textarea:focus {
+    border-color: var(--g-accent) !important;
+    box-shadow: var(--g-shadow-md), 0 0 0 3px var(--g-accent-soft) !important;
+}
+
+/* -------------------------------------------------------
+   10. DROPDOWN / SELECT
+   ------------------------------------------------------- */
+.gr-dropdown,
+select {
+    background: var(--g-bg-secondary) !important;
+    border: 1px solid var(--g-border) !important;
+    border-radius: var(--g-radius-sm) !important;
+    color: var(--g-text) !important;
+    transition: all var(--g-transition);
+}
+
+.gr-dropdown:focus-within,
+select:focus {
+    border-color: var(--g-accent) !important;
+    box-shadow: 0 0 0 3px var(--g-accent-soft) !important;
+}
+
+/* -------------------------------------------------------
+   11. SCROLLBARS
+   ------------------------------------------------------- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--g-border);
+    border-radius: var(--g-radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--g-text-muted);
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--g-border) transparent;
+}
+
+/* -------------------------------------------------------
+   12. SIDEBAR TOGGLE BUTTON
+   ------------------------------------------------------- */
+#sidebar-toggle-btn {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 300;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--g-glass-bg) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--g-border) !important;
+    border-radius: var(--g-radius-sm) !important;
+    color: var(--g-text-secondary) !important;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all var(--g-transition);
+    padding: 0 !important;
+}
+
+#sidebar-toggle-btn:hover {
+    background: var(--g-surface-hover) !important;
+    color: var(--g-text) !important;
+    transform: scale(1.05);
+}
+
+body.sidebar-collapsed #sidebar-toggle-btn {
+    left: 12px;
+}
+
+/* -------------------------------------------------------
+   13. TOAST NOTIFICATIONS (override)
+   ------------------------------------------------------- */
+.toast {
+    border-radius: var(--g-radius-sm) !important;
+    backdrop-filter: blur(12px);
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 500;
+    animation: gizmo-toastIn .35s ease-out !important;
+}
+
+@keyframes gizmo-toastIn {
+    from { opacity: 0; transform: translateY(10px) scale(.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* -------------------------------------------------------
+   14. HEADER BAR OVERRIDE
+   ------------------------------------------------------- */
+.header_bar {
+    display: none !important;  /* Replaced by sidebar */
+}
+
+/* -------------------------------------------------------
+   15. RESPONSIVE  (<768px => sidebar becomes drawer)
+   ------------------------------------------------------- */
+@media (max-width: 768px) {
+    :root { --g-sidebar-w: 240px; }
+
+    /* Sidebar hidden by default on mobile */
+    .gradio-container > .main > .wrap > .contain > .tabs > .tab-nav,
+    body > gradio-app > .main > .wrap > .contain > .tabs > .tab-nav {
+        transform: translateX(calc(-1 * var(--g-sidebar-w)));
+    }
+
+    body.sidebar-open .gradio-container > .main > .wrap > .contain > .tabs > .tab-nav,
+    body.sidebar-open > gradio-app > .main > .wrap > .contain > .tabs > .tab-nav {
+        transform: translateX(0);
+    }
+
+    /* Content always full-width on mobile */
+    .gradio-container > .main > .wrap > .contain > .tabs > .tabitem,
+    body > gradio-app > .main > .wrap > .contain > .tabs > .tabitem {
+        margin-left: 0 !important;
+    }
+
+    /* Overlay behind sidebar on mobile */
+    body.sidebar-open::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.45);
+        z-index: 199;
+        animation: gizmo-fadeIn .25s ease-out;
+    }
+}
+
+/* -------------------------------------------------------
+   16. LOADING / PROGRESS  (Gradio progress bar restyle)
+   ------------------------------------------------------- */
+.progress-bar {
+    background: linear-gradient(90deg, var(--g-accent), var(--g-success)) !important;
+    border-radius: var(--g-radius-pill) !important;
+    height: 3px !important;
+}
+
+/* -------------------------------------------------------
+   17. LABEL & INFO TEXT
+   ------------------------------------------------------- */
+label,
+.gr-label {
+    color: var(--g-text) !important;
+    font-weight: 500 !important;
+    font-size: 13.5px !important;
+}
+
+.gr-info,
+.info-text {
+    color: var(--g-text-muted) !important;
+    font-size: 12.5px !important;
+}
+
+/* -------------------------------------------------------
+   18. MARKDOWN CONTENT POLISH
+   ------------------------------------------------------- */
+.prose h1, .prose h2, .prose h3, .prose h4 {
+    color: var(--g-text) !important;
+}
+
+.prose a {
+    color: var(--g-accent) !important;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--g-transition);
+}
+
+.prose a:hover {
+    border-bottom-color: var(--g-accent);
+}
+
+/* -------------------------------------------------------
+   19. GIZMO LOGO AREA  (top of sidebar)
+   ------------------------------------------------------- */
+#gizmo-sidebar-brand {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--g-sidebar-w);
+    height: 52px;
+    z-index: 201;
+    display: flex;
+    align-items: center;
+    padding-left: 52px;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -.3px;
+    color: var(--g-text);
+    background: var(--g-glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--g-border);
+    border-right: 1px solid var(--g-border);
+    transition: transform var(--g-transition), background var(--g-transition), color var(--g-transition);
+}
+
+body.sidebar-collapsed #gizmo-sidebar-brand {
+    transform: translateX(calc(-1 * var(--g-sidebar-w)));
+}
+
+#gizmo-sidebar-brand span {
+    background: linear-gradient(135deg, var(--g-accent), var(--g-success));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* -------------------------------------------------------
+   20. SMOOTH THEME TRANSITION
+   ------------------------------------------------------- */
+body, body *, body *::before, body *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: .25s;
+    transition-timing-function: cubic-bezier(.4,0,.2,1);
+}
+/* Exclude animations / transforms from the blanket transition */
+button, .tabitem, .chat .message {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow, transform;
 }
