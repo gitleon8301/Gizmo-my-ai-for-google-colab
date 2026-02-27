@@ -11,7 +11,7 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple
 
-from modules.dev_team import call_ai
+from modules.ai_helper import call_ai
 
 
 # ------------------------------------------------------------------
