@@ -6,6 +6,13 @@ import re
 from typing import Dict, List, Optional, Tuple
 
 
+def _ensure_google_deps() -> str | None:
+    """Auto-install Google API dependencies. Returns error string or None."""
+    from modules.dependency_manager import ensure_packages
+    ok, msg = ensure_packages("Google Docs")
+    return None if ok else msg
+
+
 def _missing_deps_error() -> str:
     return (
         "Google API dependencies not installed. Run:\n"
