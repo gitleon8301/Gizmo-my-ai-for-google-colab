@@ -8,6 +8,12 @@
     --selected-item-color-dark: #282930;
 }
 
+/* Force dark background immediately so there's no white flash on load */
+body, .gradio-container {
+    background-color: #212125 !important;
+    color: #e5e7eb !important;
+}
+
 @font-face {
     font-family: Inter;
     src: url('file/css/Inter/Inter-VariableFont_opsz,wght.ttf') format('truetype');
