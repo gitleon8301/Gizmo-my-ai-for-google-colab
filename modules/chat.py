@@ -1,3 +1,13 @@
+def delete_history(unique_id, character, mode):
+    """
+    Deletes the chat history file for the given unique_id, character, and mode.
+    """
+    p = get_history_file_path(unique_id, character, mode)
+    if p.exists():
+        delete_file(str(p))
+        logger.info(f"Deleted chat history: {p}")
+    else:
+        logger.warning(f"Chat history file not found: {p}")
 import base64
 import copy
 import functools
@@ -916,7 +926,20 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
     # Generate
     reply = None
     _gen_start = time.monotonic()
+    tokens_per_sec = None
+    _token_count = 0
+    # Simulate backend status streaming: yield status updates at key points
+    # Initial status: searching (if web search enabled), else generating
+    if for_ui:
+        if state.get('enable_web_search', False):
+            yield {"backend_status": "searching"}
+        else:
+            yield {"backend_status": "generating"}
+
     for j, reply in enumerate(generate_reply(prompt, state, stopping_strings=stopping_strings, is_chat=True, for_ui=for_ui)):
+        # During generation, yield 'generating' status
+        if for_ui and j == 0:
+            yield {"backend_status": "generating"}
 
         # Extract the reply
         if state['mode'] in ['chat', 'chat-instruct']:
@@ -957,7 +980,26 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
             })
 
         if is_stream:
+            # Count tokens for streaming
+            _token_count = len(reply.split())
+            # Yield tokens/sec and backend_status for UI at each step
+            if for_ui:
+                elapsed = time.monotonic() - _gen_start
+                tokens_per_sec_live = _token_count / elapsed if elapsed > 0 else 0.0
+                yield {"tokens_per_sec": tokens_per_sec_live, "backend_status": "generating"}
             yield output
+
+    # Calculate tokens/sec after generation
+    _gen_time = time.monotonic() - _gen_start
+    _reply_text = output['internal'][-1][1] if output['internal'] else ''
+    _tokens_out = len(_reply_text.split())
+    tokens_per_sec = 0.0
+    if _gen_time > 0:
+        tokens_per_sec = _tokens_out / _gen_time
+
+    # Yield a special dict to update tokens/sec UI if for_ui
+    if for_ui:
+        yield {"tokens_per_sec": tokens_per_sec, "backend_status": "idle"}
 
     if _continue:
         # Reprocess the entire internal text for extensions (like translation)
