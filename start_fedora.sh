@@ -3,12 +3,13 @@
 # Gizmo MY-AI  •  Fedora Launch Script
 # ================================================================
 # Usage:
-#   ./start_fedora.sh [--port PORT] [--cpu-only] [--dev]
+#   ./start_fedora.sh [--token GITHUB_PAT] [--port PORT] [--cpu-only]
 #
 # Flags:
-#   --port N     Override server port (default: from config.yaml or 7860)
+#   --token PAT  GitHub personal access token — pulls latest code
+#                from GitHub, backs up user data first, then restores
+#   --port N     Override server port (default: 7860)
 #   --cpu-only   Disable GPU (pure CPU inference)
-#   --dev        Skip authentication (local development only)
 # ================================================================
 set -euo pipefail
 
@@ -16,66 +17,96 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # ---------------------------------------------------------------------------
-# Defaults (overridden by config.yaml values parsed below or by CLI flags)
+# Defaults
 # ---------------------------------------------------------------------------
 PORT=7860
 CPU_ONLY=0
-DEV_MODE=0
+TOKEN=""
+REPO_URL="https://github.com/leonlazdev-wq/Gizmo_MY_AI.git"
 
 # ---------------------------------------------------------------------------
 # Parse CLI flags
 # ---------------------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --port)   PORT="$2"; shift 2 ;;
+        --token)    TOKEN="$2"; shift 2 ;;
+        --port)     PORT="$2"; shift 2 ;;
         --cpu-only) CPU_ONLY=1; shift ;;
-        --dev)    DEV_MODE=1; shift ;;
         *) echo "Unknown flag: $1" >&2; shift ;;
     esac
 done
 
 # ---------------------------------------------------------------------------
-# Read storage paths from config.yaml (requires python3 + PyYAML)
+# Optional: pull latest code from GitHub (preserving user data)
 # ---------------------------------------------------------------------------
-if command -v python3 &>/dev/null && python3 -c "import yaml" &>/dev/null 2>&1; then
-    MODELS_DIR=$(python3 -c "
-import yaml, pathlib
-cfg = yaml.safe_load(open('config.yaml'))
-print(cfg.get('storage', {}).get('models_dir', '/mnt/gizmo-storage/models'))
-" 2>/dev/null || echo "/mnt/gizmo-storage/models")
+if [[ -n "$TOKEN" ]]; then
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_DIR="/tmp/gizmo_backup_${TIMESTAMP}"
+    FRESH_CLONE="/tmp/gizmo_fresh_${TIMESTAMP}"
 
-    CACHE_DIR=$(python3 -c "
-import yaml
-cfg = yaml.safe_load(open('config.yaml'))
-print(cfg.get('storage', {}).get('cache_dir', '/mnt/gizmo-storage/cache'))
-" 2>/dev/null || echo "/mnt/gizmo-storage/cache")
+    echo "🔄  Backing up user data to ${BACKUP_DIR} …"
+    mkdir -p "$BACKUP_DIR"
+    [[ -d "./user_data"      ]] && cp -a "./user_data"      "$BACKUP_DIR/"
+    [[ -d "./storage/models" ]] && cp -a "./storage/models" "$BACKUP_DIR/storage_models"
+    [[ -d "./storage/cache"  ]] && cp -a "./storage/cache"  "$BACKUP_DIR/storage_cache"
+    [[ -d "./storage/logs"   ]] && cp -a "./storage/logs"   "$BACKUP_DIR/storage_logs"
 
-    LOGS_DIR=$(python3 -c "
-import yaml
-cfg = yaml.safe_load(open('config.yaml'))
-print(cfg.get('storage', {}).get('logs_dir', '/mnt/gizmo-storage/logs'))
-" 2>/dev/null || echo "/mnt/gizmo-storage/logs")
+    echo "📥  Cloning latest repo …"
+    git -c "credential.helper=" \
+        -c "credential.helper=!printf 'username=x-access-token\npassword=${TOKEN}\n'" \
+        clone "$REPO_URL" "$FRESH_CLONE"
 
-    CFG_PORT=$(python3 -c "
-import yaml
-cfg = yaml.safe_load(open('config.yaml'))
-print(cfg.get('server', {}).get('port', 7860))
-" 2>/dev/null || echo "7860")
+    echo "🗑️   Removing old project files (keeping user_data/ and storage/) …"
+    find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 \
+        ! -name 'user_data' \
+        ! -name 'storage' \
+        ! -name 'venv' \
+        ! -name '.git' \
+        -exec rm -rf {} +
 
-    PUBLIC_URL=$(python3 -c "
-import yaml
-cfg = yaml.safe_load(open('config.yaml'))
-print(cfg.get('server', {}).get('public_url', 'https://gizmohub.ai'))
-" 2>/dev/null || echo "https://gizmohub.ai")
+    echo "📦  Installing fresh code …"
+    cp -a "$FRESH_CLONE"/. "$SCRIPT_DIR/"
 
-    # Only use config port if the user didn't pass --port
-    [[ "$PORT" == "7860" ]] && PORT="$CFG_PORT"
-else
-    MODELS_DIR="/mnt/gizmo-storage/models"
-    CACHE_DIR="/mnt/gizmo-storage/cache"
-    LOGS_DIR="/mnt/gizmo-storage/logs"
-    PUBLIC_URL="https://gizmohub.ai"
+    echo "♻️   Restoring user data …"
+    [[ -d "$BACKUP_DIR/user_data"      ]] && cp -a "$BACKUP_DIR/user_data"      "$SCRIPT_DIR/"
+    [[ -d "$BACKUP_DIR/storage_models" ]] && { mkdir -p "$SCRIPT_DIR/storage"; cp -a "$BACKUP_DIR/storage_models" "$SCRIPT_DIR/storage/models"; }
+    [[ -d "$BACKUP_DIR/storage_cache"  ]] && { mkdir -p "$SCRIPT_DIR/storage"; cp -a "$BACKUP_DIR/storage_cache"  "$SCRIPT_DIR/storage/cache";  }
+    [[ -d "$BACKUP_DIR/storage_logs"   ]] && { mkdir -p "$SCRIPT_DIR/storage"; cp -a "$BACKUP_DIR/storage_logs"   "$SCRIPT_DIR/storage/logs";   }
+
+    echo "🧹  Cleaning up temp files …"
+    rm -rf "$BACKUP_DIR" "$FRESH_CLONE"
+    echo "✅  Repo updated."
 fi
+
+# ---------------------------------------------------------------------------
+# Create Python virtual environment if needed
+# ---------------------------------------------------------------------------
+if [[ ! -f "./venv/bin/activate" ]]; then
+    echo "🐍  Creating Python virtual environment …"
+    python3 -m venv venv
+fi
+
+# ---------------------------------------------------------------------------
+# Activate venv
+# ---------------------------------------------------------------------------
+# shellcheck disable=SC1091
+source ./venv/bin/activate
+echo "🐍  Virtual environment activated"
+
+# ---------------------------------------------------------------------------
+# Install / upgrade pip dependencies
+# ---------------------------------------------------------------------------
+echo "📦  Installing pip dependencies …"
+pip install --upgrade pip --quiet
+pip install -r requirements/full/requirements.txt --quiet
+echo "✅  Dependencies installed."
+
+# ---------------------------------------------------------------------------
+# Storage paths (local, relative to project root)
+# ---------------------------------------------------------------------------
+MODELS_DIR="./storage/models"
+CACHE_DIR="./storage/cache"
+LOGS_DIR="./storage/logs"
 
 # ---------------------------------------------------------------------------
 # Export HuggingFace / PyTorch cache env vars
@@ -86,48 +117,31 @@ export TORCH_HOME="${CACHE_DIR}/torch"
 export HF_DATASETS_CACHE="${CACHE_DIR}/datasets"
 
 # ---------------------------------------------------------------------------
-# Source Google OAuth credentials (gitignored; safe to skip if missing)
-# ---------------------------------------------------------------------------
-OAUTH_ENV="user_data/google_oauth.env"
-if [[ -f "$OAUTH_ENV" ]]; then
-    # shellcheck disable=SC1090
-    source "$OAUTH_ENV"
-    echo "🔑  OAuth credentials loaded from $OAUTH_ENV"
-fi
-
-# ---------------------------------------------------------------------------
-# Activate Python virtual environment (if present)
-# ---------------------------------------------------------------------------
-VENV_ACTIVATE="./venv/bin/activate"
-if [[ -f "$VENV_ACTIVATE" ]]; then
-    # shellcheck disable=SC1090
-    source "$VENV_ACTIVATE"
-    echo "🐍  Virtual environment activated"
-fi
-
-# ---------------------------------------------------------------------------
 # Ensure required directories exist
 # ---------------------------------------------------------------------------
 mkdir -p "$MODELS_DIR" \
          "${CACHE_DIR}/transformers" \
          "${CACHE_DIR}/hf" \
          "${CACHE_DIR}/torch" \
-         "${LOGS_DIR}" \
-         "user_data/sessions"
+         "$LOGS_DIR" \
+         "user_data/sessions" \
+         "user_data/code_tutor_sessions"
 
 # ---------------------------------------------------------------------------
 # Build server.py argument list
 # ---------------------------------------------------------------------------
+PUBLIC_URL="http://localhost:${PORT}"
+
 SERVER_ARGS=(
     python3 server.py
     --listen
     --listen-host "127.0.0.1"
     --listen-port "$PORT"
     --model-dir "$MODELS_DIR"
+    --dev
 )
 
 [[ $CPU_ONLY -eq 1 ]] && SERVER_ARGS+=(--cpu)
-[[ $DEV_MODE -eq 1 ]] && SERVER_ARGS+=(--dev)
 
 # ---------------------------------------------------------------------------
 # Print startup banner
@@ -140,7 +154,7 @@ echo "   Cache   → $CACHE_DIR"
 echo "   Logs    → $LOGS_DIR"
 echo "   Port    → $PORT"
 [[ $CPU_ONLY -eq 1 ]] && echo "   Mode    → CPU-only"
-[[ $DEV_MODE -eq 1 ]] && echo "   Auth    → DISABLED (dev mode)"
+echo "   Auth    → DISABLED (local dev mode)"
 echo "================================================================"
 
 # ---------------------------------------------------------------------------
@@ -148,3 +162,4 @@ echo "================================================================"
 # ---------------------------------------------------------------------------
 echo "✅  Gizmo is running → ${PUBLIC_URL}"
 exec "${SERVER_ARGS[@]}"
+
