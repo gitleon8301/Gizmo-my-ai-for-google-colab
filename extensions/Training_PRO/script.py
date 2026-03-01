@@ -55,6 +55,31 @@ import warnings
 warnings.filterwarnings(action = "ignore", message="torch.utils.checkpoint:")
 warnings.filterwarnings(action = "ignore", message="`do_sample` is set to `False`")
 
+# --- Gizmo MY-AI integration modules (optional) ---
+try:
+    from modules.training_presets import list_presets, load_preset, save_preset
+    _HAS_PRESETS = True
+except Exception:
+    _HAS_PRESETS = False
+
+try:
+    from modules.rtx4080_optimizer import get_rtx4080_defaults
+    _HAS_RTX4080 = True
+except Exception:
+    _HAS_RTX4080 = False
+
+try:
+    from modules.training_eval import run_post_training_eval
+    _HAS_EVAL = True
+except Exception:
+    _HAS_EVAL = False
+
+try:
+    from modules.training_queue import TrainingJob, start_queue, _jobs
+    _HAS_QUEUE = True
+except Exception:
+    _HAS_QUEUE = False
+
 params = {
         "display_name": "Training PRO",
         "is_tab": True
@@ -111,7 +136,25 @@ def ui():
                     with gr.Column():
                         sort_byTime = gr.Checkbox(label='Sort list by Date', value=False, info='Sorts Loras by date created.', elem_classes=['no-background'])                        
 
-                with gr.Row():
+                # --- Presets & RTX 4080 integration (Gizmo MY-AI) ---
+                with gr.Accordion(label='Presets & Quick Optimize', open=False):
+                    with gr.Row():
+                        with gr.Column(scale=4):
+                            preset_name_box = gr.Textbox(label='Preset name', placeholder='e.g. My Custom Preset')
+                            preset_dropdown = gr.Dropdown(
+                                label='Load preset',
+                                choices=list_presets() if _HAS_PRESETS else [],
+                                value='None',
+                                elem_classes=['slim-dropdown'],
+                            )
+                        with gr.Column():
+                            load_preset_btn  = gr.Button('Load ▶', variant='secondary')
+                            save_preset_btn  = gr.Button('Save 💾', variant='secondary')
+                            delete_preset_btn = gr.Button('Delete 🗑️', variant='stop')
+                            rtx4080_btn      = gr.Button('⚡ Optimize for RTX 4080', variant='primary')
+                    preset_status = gr.Markdown(value='')
+
+
                     with gr.Column(scale=5):
                         lora_name = gr.Textbox(label='Name', info='The name of your new LoRA file')
     
@@ -223,6 +266,7 @@ def ui():
                 with gr.Row():
                     start_button = gr.Button("Start LoRA Training", variant='primary')
                     stop_button = gr.Button("Interrupt")
+                    queue_button = gr.Button("➕ Add to Queue", variant='secondary')
 
                 with gr.Accordion(label="Graph", open=True):
                     with gr.Row():
@@ -272,6 +316,113 @@ def ui():
     start_button.click(do_train, all_params, [output,plot_graph])
     stop_button.click(do_interrupt, None, None, queue=False)
     higher_rank_limit.change(change_rank_limit, [higher_rank_limit], [lora_rank, lora_alpha])
+
+    # --- Presets & RTX 4080 event handlers (Gizmo MY-AI) ---
+    _preset_outputs = [lora_rank, lora_alpha, lora_dropout, epochs, learning_rate, lr_scheduler_type,
+                       micro_batch_size, grad_accumulation, cutoff_len, training_projection,
+                       neft_noise_alpha, warmup_steps, preset_status]
+
+    def _do_load_preset(name):
+        if not _HAS_PRESETS:
+            return [gr.update()] * (len(_preset_outputs) - 1) + ["⚠️ training_presets module not available."]
+        cfg = load_preset(name)
+        if cfg is None:
+            return [gr.update()] * (len(_preset_outputs) - 1) + [f"⚠️ Preset '{name}' not found."]
+        return [
+            gr.update(value=cfg.get("lora_rank", gr.update())),
+            gr.update(value=cfg.get("lora_alpha", gr.update())),
+            gr.update(value=cfg.get("lora_dropout", gr.update())),
+            gr.update(value=cfg.get("epochs", gr.update())),
+            gr.update(value=cfg.get("learning_rate", gr.update())),
+            gr.update(value=cfg.get("lr_scheduler_type", gr.update())),
+            gr.update(value=cfg.get("micro_batch_size", gr.update())),
+            gr.update(value=cfg.get("grad_accumulation", gr.update())),
+            gr.update(value=cfg.get("cutoff_len", gr.update())),
+            gr.update(value=cfg.get("training_projection", gr.update())),
+            gr.update(value=cfg.get("neft_noise_alpha", gr.update())),
+            gr.update(value=cfg.get("warmup_steps", gr.update())),
+            f"✅ Loaded preset: **{name}**",
+        ]
+
+    def _do_save_preset(name, rank, alpha, dropout, ep, lr, sched, mbs, gacc, cut, proj, neft, wu):
+        if not _HAS_PRESETS:
+            return "⚠️ training_presets module not available."
+        if not name.strip():
+            return "⚠️ Enter a preset name first."
+        cfg = {
+            "lora_rank": rank, "lora_alpha": alpha, "lora_dropout": dropout,
+            "epochs": ep, "learning_rate": lr, "lr_scheduler_type": sched,
+            "micro_batch_size": mbs, "grad_accumulation": gacc, "cutoff_len": cut,
+            "training_projection": proj, "neft_noise_alpha": neft, "warmup_steps": wu,
+        }
+        ok = save_preset(name, cfg)
+        if ok:
+            return f"✅ Saved preset: **{name}**"
+        return f"❌ Failed to save preset '{name}'."
+
+    def _do_delete_preset(name):
+        if not _HAS_PRESETS:
+            return "⚠️ training_presets module not available.", gr.update()
+        ok = delete_preset(name)
+        new_choices = list_presets() if _HAS_PRESETS else []
+        if ok:
+            return f"✅ Deleted preset: **{name}**", gr.update(choices=new_choices, value='None')
+        return f"⚠️ Preset '{name}' not found.", gr.update(choices=new_choices)
+
+    def _do_rtx4080():
+        if not _HAS_RTX4080:
+            return [gr.update()] * (len(_preset_outputs) - 1) + ["⚠️ rtx4080_optimizer module not available."]
+        cfg = get_rtx4080_defaults()
+        return [
+            gr.update(value=cfg.get("lora_rank", gr.update())),
+            gr.update(value=cfg.get("lora_alpha", gr.update())),
+            gr.update(value=cfg.get("lora_dropout", gr.update())),
+            gr.update(value=cfg.get("epochs", gr.update())),
+            gr.update(value=cfg.get("learning_rate", gr.update())),
+            gr.update(value=cfg.get("lr_scheduler_type", gr.update())),
+            gr.update(value=cfg.get("micro_batch_size", gr.update())),
+            gr.update(value=cfg.get("grad_accumulation", gr.update())),
+            gr.update(value=cfg.get("cutoff_len", gr.update())),
+            gr.update(value=cfg.get("training_projection", gr.update())),
+            gr.update(value=cfg.get("neft_noise_alpha", gr.update())),
+            gr.update(value=cfg.get("warmup_steps", gr.update())),
+            "✅ RTX 4080 optimal settings applied.",
+        ]
+
+    def _do_add_queue(lora_name_val, *params):
+        if not _HAS_QUEUE:
+            return "⚠️ training_queue module not available."
+        try:
+            config_snapshot = dict(zip(
+                ["lora_name", "always_override", "save_steps", "micro_batch_size", "batch_size",
+                 "epochs", "learning_rate", "lr_scheduler_type", "lora_rank", "lora_alpha",
+                 "lora_dropout", "cutoff_len", "dataset", "eval_dataset", "format", "eval_steps",
+                 "raw_text_file", "higher_rank_limit", "warmup_steps", "optimizer",
+                 "hard_cut_string", "train_only_after", "stop_at_loss", "add_eos_token",
+                 "min_chars", "report_to", "precize_slicing_overlap", "add_eos_token_type",
+                 "save_steps_under_loss", "add_bos_token", "training_projection",
+                 "sliding_window", "warmup_ratio", "grad_accumulation", "neft_noise_alpha"],
+                [lora_name_val] + list(params),
+            ))
+            job = TrainingJob(
+                name=lora_name_val or "unnamed",
+                fn=do_train,
+                kwargs=config_snapshot,
+            )
+            _jobs.append(job)
+            return f"✅ Added **{lora_name_val or 'unnamed'}** to training queue ({len(_jobs)} job(s) queued)."
+        except Exception as exc:
+            return f"❌ Queue error: {exc}"
+
+    _save_preset_inputs = [preset_name_box, lora_rank, lora_alpha, lora_dropout, epochs,
+                           learning_rate, lr_scheduler_type, micro_batch_size, grad_accumulation,
+                           cutoff_len, training_projection, neft_noise_alpha, warmup_steps]
+
+    load_preset_btn.click(_do_load_preset, [preset_dropdown], _preset_outputs)
+    save_preset_btn.click(_do_save_preset, _save_preset_inputs, [preset_status])
+    delete_preset_btn.click(_do_delete_preset, [preset_dropdown], [preset_status, preset_dropdown])
+    rtx4080_btn.click(_do_rtx4080, [], _preset_outputs)
+    queue_button.click(_do_add_queue, [lora_name] + all_params[1:], [output])
 
     def trigger_stop_at_loss(stop_at_loss_value):
         non_serialized_params.update({"stop_at_loss": stop_at_loss_value})
@@ -1174,6 +1325,19 @@ def do_train(lora_name: str, always_override: bool, save_steps: int, micro_batch
         # Save log
         with open(f"{lora_file_path}/training_log.json", 'w', encoding='utf-8') as file:
             json.dump(train_log, file, indent=2)
+        # --- Post-training evaluation (Gizmo MY-AI) ---
+        if _HAS_EVAL:
+            try:
+                run_post_training_eval(
+                    model_name=shared.model_name,
+                    lora_name=lora_name,
+                    eval_dataset=None,
+                    test_prompts=["Hello, who are you?", "What can you help me with?",
+                                  "Tell me a short story.", "Explain neural networks simply.",
+                                  "What is the capital of France?"],
+                )
+            except Exception as _eval_exc:
+                logger.warning(f"Post-training eval skipped: {_eval_exc}")
 
     thread = threading.Thread(target=threaded_run)
     thread.start()
