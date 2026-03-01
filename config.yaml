@@ -16,11 +16,11 @@ server:
   # Bind address — use 127.0.0.1 so Caddy is the only external entry point
   host: "127.0.0.1"
   # Public URL shown in the startup banner and used in OAuth redirect URIs
-  public_url: "https://gizmohub.ai"
+  public_url: "http://localhost:7860"
 
 auth:
   # Set to false to skip authentication entirely (useful for local dev)
-  enabled: true
+  enabled: false
   # Path to the newline-delimited list of allowed Gmail addresses
   allowed_emails_file: "user_data/allowed_emails.txt"
   # Leave blank; the first email in allowed_emails_file is treated as owner
