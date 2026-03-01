@@ -411,28 +411,11 @@ def create_interface():
     # Launch the interface
     shared.gradio['interface'].queue()
 
-    # Apply security headers middleware to the underlying FastAPI app (best-effort)
+    # Apply security headers + OAuth middleware (best-effort)
     try:
-        from starlette.middleware.base import BaseHTTPMiddleware
-        from starlette.responses import Response as StarletteResponse
-
-        _SEC_HEADERS = {
-            "X-Frame-Options": "SAMEORIGIN",
-            "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-            "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
-        }
-
-        class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
-            async def dispatch(self, request, call_next):
-                response = await call_next(request)
-                for k, v in _SEC_HEADERS.items():
-                    response.headers.setdefault(k, v)
-                return response
-
-        shared.gradio['interface'].app.add_middleware(_SecurityHeadersMiddleware)
-    except Exception:
-        pass  # Non-critical — Caddy handles headers in production
+        shared.gradio['interface'].app = _apply_security_middlewares(shared.gradio['interface'].app)
+    except Exception as _mw_exc:
+        logger.warning(f"Could not apply security middlewares: {_mw_exc}")
 
     with OpenMonkeyPatch():
         shared.gradio['interface'].launch(
