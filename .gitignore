@@ -14,6 +14,10 @@ user_data/training_datasets/
 user_data/training_results/
 user_data/logs/
 user_data/cache/
+user_data/memory.json
+user_data/theme.json
+user_data/flashcards/
+user_data/image_outputs/
 
 # Test artifacts
 /audit/
