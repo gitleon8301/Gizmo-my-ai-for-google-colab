@@ -2,7 +2,18 @@
 /extensions
 /installer_files
 /repositories
-/user_data
+
+# user_data — ignore secrets and generated data, but track template files
+user_data/google_oauth.env
+user_data/allowed_emails.txt
+user_data/sessions/
+user_data/api_keys.json
+user_data/queue_state.json
+user_data/training_presets/
+user_data/training_datasets/
+user_data/training_results/
+user_data/logs/
+user_data/cache/
 
 # Test artifacts
 /audit/

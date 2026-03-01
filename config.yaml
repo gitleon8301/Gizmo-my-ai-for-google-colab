@@ -1,0 +1,51 @@
+# Gizmo MY-AI — Self-Hosted Fedora Configuration
+# All options have comments explaining their purpose.
+
+storage:
+  # Root directory for all persistent Gizmo data on the Fedora host
+  base_dir: "/mnt/gizmo-storage"
+  # Where GGUF / HuggingFace model files are stored (shared by all users)
+  models_dir: "/mnt/gizmo-storage/models"
+  # Transformers, HF, and Torch cache (avoids re-downloading weights)
+  cache_dir: "/mnt/gizmo-storage/cache"
+  # Server log files
+  logs_dir: "/mnt/gizmo-storage/logs"
+
+server:
+  # Port that Gradio listens on (Caddy reverse-proxies this to 443)
+  port: 7860
+  # Bind address — use 127.0.0.1 so Caddy is the only external entry point
+  host: "127.0.0.1"
+  # Public URL shown in the startup banner and used in OAuth redirect URIs
+  public_url: "https://gizmohub.ai"
+
+auth:
+  # Set to false to skip authentication entirely (useful for local dev)
+  enabled: true
+  # Path to the newline-delimited list of allowed Gmail addresses
+  allowed_emails_file: "user_data/allowed_emails.txt"
+  # Leave blank; the first email in allowed_emails_file is treated as owner
+  owner_email: ""
+  # How long a signed browser session cookie stays valid
+  session_timeout_hours: 24
+
+rate_limits:
+  # Maximum AI generation requests per user per minute
+  max_requests_per_minute: 8
+  # Maximum simultaneous users (additional users are queued)
+  max_concurrent_users: 6
+  # Maximum total model storage a regular user can download (GB)
+  max_model_storage_gb_per_user: 100
+  # Maximum total chat-log storage before users are prompted to delete old chats (GB)
+  max_chat_storage_gb: 50
+
+gpu:
+  # Automatically calculate n-gpu-layers from available VRAM
+  auto_layers: true
+  # Keep this % of VRAM free as a safety buffer when calculating layers
+  vram_safety_buffer_percent: 10
+  # Unload model from VRAM after this many minutes of inactivity (0 = never)
+  idle_unload_minutes: 15
+
+# Inference backend — "llamacpp" or "ollama"
+backend: "llamacpp"

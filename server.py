@@ -404,6 +404,30 @@ def create_interface():
 
     # Launch the interface
     shared.gradio['interface'].queue()
+
+    # Apply security headers middleware to the underlying FastAPI app (best-effort)
+    try:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.responses import Response as StarletteResponse
+
+        _SEC_HEADERS = {
+            "X-Frame-Options": "SAMEORIGIN",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+        }
+
+        class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                response = await call_next(request)
+                for k, v in _SEC_HEADERS.items():
+                    response.headers.setdefault(k, v)
+                return response
+
+        shared.gradio['interface'].app.add_middleware(_SecurityHeadersMiddleware)
+    except Exception:
+        pass  # Non-critical — Caddy handles headers in production
+
     with OpenMonkeyPatch():
         shared.gradio['interface'].launch(
             max_threads=64,
@@ -419,6 +443,55 @@ def create_interface():
             root_path=shared.args.subpath,
             allowed_paths=allowed_paths,
         )
+
+
+def _load_fedora_config() -> dict:
+    """Load config.yaml from the repo root.  Returns {} on any error."""
+    try:
+        import yaml
+        cfg_path = Path(__file__).resolve().parent / "config.yaml"
+        with open(cfg_path) as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def _apply_security_middlewares(app):
+    """
+    Wrap *app* with security headers and (optionally) Google OAuth middleware.
+
+    Skipped when:
+      - --dev flag is passed
+      - config.yaml auth.enabled == false
+      - GIZMO_AUTH_ENABLED env var is "false"
+
+    Returns the (possibly wrapped) app.
+    """
+    # Security headers are always applied (never crash)
+    try:
+        from modules.security_headers import SecurityHeadersMiddleware
+        app = SecurityHeadersMiddleware(app)
+    except Exception as exc:
+        logger.warning(f"security_headers middleware unavailable: {exc}")
+
+    # Google OAuth middleware — only when auth is enabled
+    dev_mode   = "--dev" in sys.argv
+    env_skip   = os.environ.get("GIZMO_AUTH_ENABLED", "").lower() == "false"
+    cfg        = _load_fedora_config()
+    cfg_skip   = not cfg.get("auth", {}).get("enabled", True)
+    skip_auth  = dev_mode or env_skip or cfg_skip
+
+    if not skip_auth:
+        try:
+            from modules.auth_google import GoogleOAuthMiddleware
+            app = GoogleOAuthMiddleware(app, skip_auth=False)
+            logger.info("Google OAuth middleware enabled")
+        except Exception as exc:
+            logger.warning(f"auth_google middleware unavailable: {exc}")
+    else:
+        logger.info("Authentication disabled (dev/config)")
+
+    return app
 
 
 if __name__ == "__main__":
