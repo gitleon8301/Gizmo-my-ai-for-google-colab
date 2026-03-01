@@ -55,6 +55,31 @@ import warnings
 warnings.filterwarnings(action = "ignore", message="torch.utils.checkpoint:")
 warnings.filterwarnings(action = "ignore", message="`do_sample` is set to `False`")
 
+# --- Gizmo MY-AI integration modules (optional) ---
+try:
+    from modules.training_presets import list_presets, load_preset, save_preset
+    _HAS_PRESETS = True
+except Exception:
+    _HAS_PRESETS = False
+
+try:
+    from modules.rtx4080_optimizer import get_rtx4080_defaults
+    _HAS_RTX4080 = True
+except Exception:
+    _HAS_RTX4080 = False
+
+try:
+    from modules.training_eval import run_post_training_eval
+    _HAS_EVAL = True
+except Exception:
+    _HAS_EVAL = False
+
+try:
+    from modules.training_queue import TrainingJob, start_queue, _jobs
+    _HAS_QUEUE = True
+except Exception:
+    _HAS_QUEUE = False
+
 params = {
         "display_name": "Training PRO",
         "is_tab": True
@@ -164,7 +189,25 @@ def ui():
                     with gr.Column():
                         sort_byTime = gr.Checkbox(label='Sort list by Date', value=False, info='Sorts Loras by date created.', elem_classes=['no-background'])                        
 
-                with gr.Row():
+                # --- Presets & RTX 4080 integration (Gizmo MY-AI) ---
+                with gr.Accordion(label='Presets & Quick Optimize', open=False):
+                    with gr.Row():
+                        with gr.Column(scale=4):
+                            preset_name_box = gr.Textbox(label='Preset name', placeholder='e.g. My Custom Preset')
+                            preset_dropdown = gr.Dropdown(
+                                label='Load preset',
+                                choices=list_presets() if _HAS_PRESETS else [],
+                                value='None',
+                                elem_classes=['slim-dropdown'],
+                            )
+                        with gr.Column():
+                            load_preset_btn  = gr.Button('Load ▶', variant='secondary')
+                            save_preset_btn  = gr.Button('Save 💾', variant='secondary')
+                            delete_preset_btn = gr.Button('Delete 🗑️', variant='stop')
+                            rtx4080_btn      = gr.Button('⚡ Optimize for RTX 4080', variant='primary')
+                    preset_status = gr.Markdown(value='')
+
+
                     with gr.Column(scale=5):
                         lora_name = gr.Textbox(label='Name', info='The name of your new LoRA file')
     
@@ -276,6 +319,7 @@ def ui():
                 with gr.Row():
                     start_button = gr.Button("Start LoRA Training", variant='primary')
                     stop_button = gr.Button("Interrupt")
+                    queue_button = gr.Button("➕ Add to Queue", variant='secondary')
 
                 with gr.Accordion(label="Graph", open=True):
                     with gr.Row():
@@ -1267,6 +1311,19 @@ def do_train(lora_name: str, always_override: bool, save_steps: int, micro_batch
         # Save log
         with open(f"{lora_file_path}/training_log.json", 'w', encoding='utf-8') as file:
             json.dump(train_log, file, indent=2)
+        # --- Post-training evaluation (Gizmo MY-AI) ---
+        if _HAS_EVAL:
+            try:
+                run_post_training_eval(
+                    model_name=shared.model_name,
+                    lora_name=lora_name,
+                    eval_dataset=None,
+                    test_prompts=["Hello, who are you?", "What can you help me with?",
+                                  "Tell me a short story.", "Explain neural networks simply.",
+                                  "What is the capital of France?"],
+                )
+            except Exception as _eval_exc:
+                logger.warning(f"Post-training eval skipped: {_eval_exc}")
 
     thread = threading.Thread(target=threaded_run)
     thread.start()
