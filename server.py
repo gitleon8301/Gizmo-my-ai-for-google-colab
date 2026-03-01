@@ -65,7 +65,6 @@ from modules import (
     ui_analytics,
     ui_marketplace,
     ui_developer,
-    ui_launch,
     ui_google_slides,
     ui_youtube,
     ui_github_chat,
@@ -259,6 +258,8 @@ def create_interface():
 
         # Dark/Light theme toggle button — always visible in top-right corner
         gr.HTML(ui_theme_toggle.get_html())
+        # Custom left-side, scrollable tab navigator mount
+        gr.HTML('<div id="gizmo-sidebar" class="gizmo-sidebar"></div>', elem_id='gizmo-sidebar-mount')
 
         # Interface state
         shared.gradio['interface_state'] = gr.State({k: None for k in shared.input_elements})
@@ -272,9 +273,6 @@ def create_interface():
 
         # Temporary clipboard for saving files
         shared.gradio['temporary_text'] = gr.Textbox(visible=False)
-
-        # Launch overlays / CTA
-        ui_launch.create_ui()
 
         # Chat tab
         ui_dashboard.create_ui()         # Dashboard tab (first)
@@ -371,7 +369,6 @@ def create_interface():
         ui_chat.create_event_handlers()
         ui_chat_folders.create_event_handlers()  # Chat Folders events
         ui_chat_export.create_event_handlers()   # Export Chat events
-        ui_launch.create_event_handlers()
         ui_workflows.create_event_handlers()
         ui_forms.create_event_handlers()
         ui_marketplace.create_event_handlers()
@@ -447,7 +444,6 @@ def create_interface():
 
         shared.gradio['interface'].load(partial(ui.apply_interface_values, {}, use_persistent=True), None, gradio(ui.list_interface_input_elements()), show_progress=False)
 
-        shared.gradio['interface'].load(ui_launch.on_app_ready, None, gradio('launch_status', 'whats_new_modal'), show_progress=False)
 
         extensions_module.create_extensions_tabs()  # Extensions tabs
         extensions_module.create_extensions_block()  # Extensions block
