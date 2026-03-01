@@ -140,17 +140,6 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 
-def _ensure_queue_runtime_state(queue_obj):
-    if queue_obj is None:
-        return
-    if getattr(queue_obj, "pending_message_lock", None) is None:
-        queue_obj.pending_message_lock = asyncio.Lock()
-    if getattr(queue_obj, "delete_lock", None) is None:
-        queue_obj.delete_lock = asyncio.Lock()
-    if getattr(queue_obj, "pending_event_ids_session", None) is None:
-        queue_obj.pending_event_ids_session = {}
-
-
 def _patch_gradio_queue_runtime():
     """Defensive monkeypatches for Gradio queue runtime on Python 3.14."""
     try:
@@ -160,21 +149,14 @@ def _patch_gradio_queue_runtime():
             _orig_push = gr_queueing.Queue.push
 
             async def _safe_push(self, *args, **kwargs):
-                _ensure_queue_runtime_state(self)
+                if getattr(self, 'pending_message_lock', None) is None:
+                    self.pending_message_lock = asyncio.Lock()
+                if getattr(self, 'pending_event_ids_session', None) is None:
+                    self.pending_event_ids_session = {}
                 return await _orig_push(self, *args, **kwargs)
 
             _safe_push._gizmo_patched = True
             gr_queueing.Queue.push = _safe_push
-
-        if not getattr(gr_queueing.Queue.clean_events, '_gizmo_patched', False):
-            _orig_clean_events = gr_queueing.Queue.clean_events
-
-            async def _safe_clean_events(self, *args, **kwargs):
-                _ensure_queue_runtime_state(self)
-                return await _orig_clean_events(self, *args, **kwargs)
-
-            _safe_clean_events._gizmo_patched = True
-            gr_queueing.Queue.clean_events = _safe_clean_events
     except Exception as _patch_exc:
         logger.warning(f"Could not patch Gradio queue runtime: {_patch_exc}")
 
@@ -186,8 +168,8 @@ def _apply_gradio_runtime_guards():
             return
 
         q = getattr(iface, '_queue', None)
-        if q is not None:
-            _ensure_queue_runtime_state(q)
+        if q is not None and getattr(q, 'pending_message_lock', None) is None:
+            q.pending_message_lock = asyncio.Lock()
 
         app = getattr(iface, 'app', None)
         if app is not None and getattr(app, 'stop_event', None) is None:

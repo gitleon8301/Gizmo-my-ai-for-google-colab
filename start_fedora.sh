@@ -3,7 +3,7 @@
 # Gizmo MY-AI  •  Fedora Launch Script
 # ================================================================
 # Usage:
-#   ./start_fedora.sh [--token GITHUB_PAT] [--port PORT] [--host HOST] [--cpu-only] [--share]
+#   ./start_fedora.sh [--token GITHUB_PAT] [--port PORT] [--cpu-only] [--share]
 #
 # Flags:
 #   --token PAT  GitHub personal access token — pulls latest code
