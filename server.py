@@ -205,7 +205,13 @@ def create_interface():
     # Interface state elements
     shared.input_elements = ui.list_interface_input_elements()
 
-    with gr.Blocks(css=css, analytics_enabled=False, title=title, theme=ui.theme) as shared.gradio['interface']:
+    with gr.Blocks(
+        css=css,
+        analytics_enabled=False,
+        title=title,
+        theme=ui.theme,
+        head='<link rel="manifest" href="/static/manifest.json"><meta name="theme-color" content="#6C63FF">'
+    ) as shared.gradio['interface']:
 
         # Dark/Light theme toggle button — always visible in top-right corner
         gr.HTML(ui_theme_toggle.get_html())

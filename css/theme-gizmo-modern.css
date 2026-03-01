@@ -14,23 +14,25 @@
 [data-theme="dark"] {
     /* Backgrounds */
     --bg-primary:      #0d0f12;
-    --bg-secondary:    #141619;
-    --bg-surface:      #1a1d22;
-    --bg-surface-hover:#22262d;
-    --bg-input:        #1a1d22;
+    --bg-secondary:    #161a1f;
+    --bg-card:         #1e2329;
+    --bg-hover:        #252b33;
+    --bg-surface:      #1e2329;
+    --bg-surface-hover:#252b33;
+    --bg-input:        #1e2329;
 
     /* Borders */
-    --border:          #2a2e38;
+    --border:          #2d3139;
     --border-focus:    #6c63ff;
 
     /* Text */
-    --text-primary:    #e8eaf0;
-    --text-secondary:  #9ba3b4;
-    --text-muted:      #5f6675;
+    --text-primary:    #e8eaed;
+    --text-secondary:  #9aa0a6;
+    --text-muted:      #5f6368;
 
     /* Accent */
-    --accent:          #6c63ff;
-    --accent-hover:    #5a52e8;
+    --accent:          #6C63FF;
+    --accent-hover:    #5a52e0;
     --accent-soft:     rgba(108, 99, 255, 0.12);
 
     /* Status */
@@ -39,27 +41,37 @@
     --danger:          #ef4444;
 
     /* Layout */
+    --sidebar-width:   260px;
     --sidebar-w:       260px;
     --sidebar-collapsed: 56px;
+    --topbar-height:   56px;
     --topbar-h:        56px;
 
     /* Radii */
-    --radius:          12px;
     --radius-sm:       8px;
+    --radius-md:       12px;
+    --radius:          12px;
+    --radius-lg:       20px;
     --radius-pill:     999px;
 
     /* Shadows */
+    --shadow:          0 2px 8px rgba(0,0,0,0.4);
     --shadow-sm:       0 1px 4px rgba(0,0,0,.3);
     --shadow-md:       0 4px 20px rgba(0,0,0,.4);
     --shadow-lg:       0 12px 48px rgba(0,0,0,.5);
 
     /* Transitions */
-    --transition:      0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition:      250ms ease;
+
+    /* Font */
+    --font:            'Inter', system-ui, -apple-system, sans-serif;
 }
 
 [data-theme="light"] {
     --bg-primary:      #f5f7fb;
     --bg-secondary:    #ffffff;
+    --bg-card:         #ffffff;
+    --bg-hover:        #f0f2f7;
     --bg-surface:      #ffffff;
     --bg-surface-hover:#f0f2f7;
     --bg-input:        #ffffff;
@@ -68,12 +80,18 @@
     --text-primary:    #1a1d23;
     --text-secondary:  #5c6270;
     --text-muted:      #8b929f;
-    --accent:          #6c63ff;
-    --accent-hover:    #5a52e8;
+    --accent:          #6C63FF;
+    --accent-hover:    #5a52e0;
     --accent-soft:     rgba(108, 99, 255, 0.10);
+    --shadow:          0 2px 8px rgba(0,0,0,0.1);
     --shadow-sm:       0 1px 3px rgba(0,0,0,.06);
     --shadow-md:       0 4px 16px rgba(0,0,0,.09);
     --shadow-lg:       0 10px 40px rgba(0,0,0,.12);
+    --radius-md:       12px;
+    --radius-lg:       20px;
+    --sidebar-width:   260px;
+    --topbar-height:   56px;
+    --font:            'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* -------------------------------------------------------
@@ -87,9 +105,8 @@
 }
 
 /* Pause decorative animations during generation */
-body.generating *:not(.chat-bubble:last-child):not(.typing-indicator) {
-    animation-play-state: paused;
-}
+body.generating * { animation-play-state: paused !important; }
+body.generating .chat-bubble-ai:last-child { animation-play-state: running !important; }
 
 /* -------------------------------------------------------
    3.  SCROLLBAR
@@ -144,6 +161,109 @@ body.generating *:not(.chat-bubble:last-child):not(.typing-indicator) {
     background: var(--accent-soft);
     border-left: 3px solid var(--accent);
     padding-left: 11px;
+}
+
+/* Sidebar accordion */
+#gizmo-sidebar .sidebar-accordion { margin-bottom: 2px; }
+
+#gizmo-sidebar .sidebar-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+    text-align: left;
+    transition: color var(--transition), background var(--transition);
+    white-space: nowrap;
+    will-change: transform, opacity;
+}
+
+#gizmo-sidebar .sidebar-accordion-header:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+#gizmo-sidebar .sidebar-accordion.open .sidebar-accordion-header {
+    color: var(--text-primary);
+}
+
+#gizmo-sidebar .sidebar-acc-chevron {
+    margin-left: auto;
+    font-size: 1rem;
+    transition: transform var(--transition);
+    will-change: transform;
+}
+
+#gizmo-sidebar .sidebar-accordion.open .sidebar-acc-chevron {
+    transform: rotate(90deg);
+}
+
+#gizmo-sidebar .sidebar-accordion-body {
+    padding-left: 8px;
+}
+
+/* Sidebar logo */
+#gizmo-sidebar .sidebar-logo {
+    padding: 16px 14px 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Sidebar footer */
+#gizmo-sidebar .sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+    overflow: hidden;
+}
+
+#gizmo-sidebar .sidebar-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+#gizmo-sidebar .sidebar-user-email {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+#gizmo-sidebar .sidebar-logout {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 1rem;
+    flex-shrink: 0;
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition);
+}
+
+#gizmo-sidebar .sidebar-logout:hover { color: var(--danger); }
+
+#gizmo-sidebar .sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 8px;
 }
 
 /* -------------------------------------------------------
@@ -280,6 +400,7 @@ body.generating *:not(.chat-bubble:last-child):not(.typing-indicator) {
     border-radius: 50%;
     background: var(--text-muted);
     animation: typing-bounce 1.1s infinite ease-in-out;
+    will-change: transform, opacity;
 }
 
 .typing-indicator span:nth-child(2) { animation-delay: 0.18s; }
@@ -589,4 +710,40 @@ body.generating *:not(.chat-bubble:last-child):not(.typing-indicator) {
     border-radius: 5px;
     padding: 2px 7px;
     color: var(--text-primary);
+}
+
+/* -------------------------------------------------------
+   18. MESSAGE ACTIONS ON HOVER
+   ------------------------------------------------------- */
+.gizmo-msg-actions {
+    display: none;
+    position: absolute;
+    bottom: -30px;
+    left: 0;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 3px 6px;
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+}
+
+.message:hover .gizmo-msg-actions { display: flex; }
+
+.gizmo-msg-action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.82rem;
+    padding: 2px 5px;
+    border-radius: 4px;
+    color: var(--text-muted);
+    transition: color var(--transition), background var(--transition);
+    will-change: transform, opacity;
+}
+
+.gizmo-msg-action-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
 }

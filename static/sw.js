@@ -3,12 +3,19 @@
    static/sw.js
    ============================================================ */
 
-const CACHE_NAME = 'gizmo-v1';
+const CACHE_NAME = 'gizmo-v2';
 
 /* Static assets to cache for offline use */
 const PRECACHE_URLS = [
   '/',
   '/static/manifest.json',
+  '/file=css/theme-gizmo-modern.css',
+  '/file=css/enhanced.css',
+  '/file=css/main.css',
+  '/file=js/sidebar.js',
+  '/file=js/shortcuts.js',
+  '/file=js/enhanced.js',
+  '/file=js/main.js',
 ];
 
 /* ── Install ──────────────────────────────────────────────── */
