@@ -2,14 +2,13 @@
 # All options have comments explaining their purpose.
 
 storage:
-  # Root directory for all persistent Gizmo data on the Fedora host
-  base_dir: "/mnt/gizmo-storage"
-  # Where GGUF / HuggingFace model files are stored (shared by all users)
-  models_dir: "/mnt/gizmo-storage/models"
-  # Transformers, HF, and Torch cache (avoids re-downloading weights)
-  cache_dir: "/mnt/gizmo-storage/cache"
-  # Server log files
-  logs_dir: "/mnt/gizmo-storage/logs"
+  # Default: relative "storage" dir inside the project.
+  # Change to "/mnt/gizmo-storage" if you set up a dedicated drive:
+  #   sudo mkdir -p /mnt/gizmo-storage && sudo chown $USER /mnt/gizmo-storage
+  base_dir: "./storage"
+  models_dir: "./storage/models"
+  cache_dir: "./storage/cache"
+  logs_dir: "./storage/logs"
 
 server:
   # Port that Gradio listens on (Caddy reverse-proxies this to 443)
