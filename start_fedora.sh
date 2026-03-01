@@ -9,6 +9,7 @@
 #   --token PAT  GitHub personal access token — pulls latest code
 #                from GitHub, backs up user data first, then restores
 #   --port N     Override server port (default: 7860)
+#   --host H     Listen host (default: 0.0.0.0 for LAN access)
 #   --cpu-only   Disable GPU (pure CPU inference)
 #   --share      Enable Gradio public URL sharing
 # ================================================================
@@ -21,6 +22,7 @@ cd "$SCRIPT_DIR"
 # Defaults
 # ---------------------------------------------------------------------------
 PORT=7860
+HOST="0.0.0.0"
 CPU_ONLY=0
 SHARE=0
 TOKEN=""
@@ -33,6 +35,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --token)    TOKEN="$2"; shift 2 ;;
         --port)     PORT="$2"; shift 2 ;;
+        --host)     HOST="$2"; shift 2 ;;
         --cpu-only) CPU_ONLY=1; shift ;;
         --share)    SHARE=1; shift ;;
         *) echo "Unknown flag: $1" >&2; shift ;;
@@ -165,12 +168,18 @@ mkdir -p "$MODELS_DIR" \
 # ---------------------------------------------------------------------------
 # Build server.py argument list
 # ---------------------------------------------------------------------------
-PUBLIC_URL="http://localhost:${PORT}"
+PUBLIC_URL="http://${HOST}:${PORT}"
+if [[ "$HOST" == "0.0.0.0" ]]; then
+    LAN_IP=$(hostname -I 2>/dev/null | awk "{print $1}")
+    if [[ -n "${LAN_IP:-}" ]]; then
+        PUBLIC_URL="http://${LAN_IP}:${PORT}"
+    fi
+fi
 
 SERVER_ARGS=(
     python3 server.py
     --listen
-    --listen-host "127.0.0.1"
+    --listen-host "$HOST"
     --listen-port "$PORT"
     --model-dir "$MODELS_DIR"
 )
@@ -187,6 +196,7 @@ echo "================================================================"
 echo "   Models  → $MODELS_DIR"
 echo "   Cache   → $CACHE_DIR"
 echo "   Logs    → $LOGS_DIR"
+echo "   Host    → $HOST"
 echo "   Port    → $PORT"
 [[ $CPU_ONLY -eq 1 ]] && echo "   Mode    → CPU-only"
 [[ $SHARE -eq 1 ]] && echo "   Access  → Public URL enabled (--share)"
